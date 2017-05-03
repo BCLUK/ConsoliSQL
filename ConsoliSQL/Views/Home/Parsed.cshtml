@@ -1,0 +1,13 @@
+﻿@model ConsoliSQL.Models.Parsed
+
+@{
+    ViewBag.Title = "Parsed";
+}
+
+<h2>Parsed</h2>
+
+<script src="~/Scripts/viz.js"></script>
+<script>
+    var test = Viz(@Html.Raw(Model.DotNotation));
+    debugger;
+</script>

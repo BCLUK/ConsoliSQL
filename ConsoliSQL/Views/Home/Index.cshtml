@@ -1,0 +1,15 @@
+﻿@model ConsoliSQL.Models.Home
+
+@{
+    ViewBag.Title = "Index";
+}
+
+<h2>Index</h2>
+
+@using (Html.BeginForm("Index", "Home", FormMethod.Post, new { enctype = "multipart/form-data" }))
+{
+    @Html.TextBoxFor(x => x.Files, new { type = "file", multiple = "multiple", accept = ".sql" })
+    @Html.ValidationMessageFor(x => x.Files)
+
+    <input type="submit" value="Consolidate" />
+}
