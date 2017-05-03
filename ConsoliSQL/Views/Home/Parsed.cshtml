@@ -4,10 +4,65 @@
     ViewBag.Title = "Parsed";
 }
 
+<script src="~/Scripts/viz.js"></script>
+<script src="~/Scripts/svg-pan-zoom.js"></script>
+
 <h2>Parsed</h2>
 
-<script src="~/Scripts/viz.js"></script>
 <script>
-    var test = Viz(@Html.Raw(Model.DotNotation));
-    debugger;
+    var svg = $(Viz("@Html.Raw(HttpUtility.JavaScriptStringEncode(Model.DotNotation))", { format: "svg" })).addClass("dot-svg");
+    $(".body-content").append(svg);
+    svgPanZoom(".dot-svg", { controlIconsEnabled: true });
+
+    function GetDateTime() {
+        var isoDate = new Date().toISOString();
+        var date = isoDate.slice(0, 10);
+        var time = isoDate.slice(11, 19);
+
+        return date + " " + time;
+    }
+
+    var urlObject = window.URL.createObjectURL(new Blob(["@Html.Raw(HttpUtility.JavaScriptStringEncode(Model.Script))"], { type: "text/plain" }));
+
+    $(".body-content").append(
+        $("<h4>").addClass("text-right").append(
+            $("<a>").html("Download ready ")
+                .attr("id", "sql-download-link")
+                .attr("href", urlObject)
+                .attr("download", "EasySQL " + GetDateTime() + ".sql")
+                .append($("<span>")
+                    .addClass("glyphicon glyphicon-download"))));
 </script>
+
+<hr />
+
+@foreach (var scriptFile in Model.ScriptFiles)
+{
+    <ul>
+        <li><b>@scriptFile.FileName</b></li>
+        @if (scriptFile.CreateObjects.Count() > 0)
+        {
+            <li>
+                <i>Creates</i>
+                <ul>
+                    @foreach (var createObject in scriptFile.CreateObjects)
+                    {
+                        <li>@createObject</li>
+                    }
+                </ul>
+            </li>
+        }
+        @if (scriptFile.DependsOn.Count() > 0)
+        {
+            <li>
+                <i>Depends On</i>
+                <ul>
+                    @foreach (var dependsObject in scriptFile.DependsOn)
+                    {
+                        <li>@dependsObject</li>
+                    }
+                </ul>
+            </li>
+        }
+    </ul>
+}

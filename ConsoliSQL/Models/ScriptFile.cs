@@ -7,12 +7,6 @@ namespace ConsoliSQL.Models
 {
     public class ScriptFile
     {
-        public ScriptFile()
-        {
-            Uid = Guid.NewGuid().ToString();
-        }
-
-        public string Uid { get; set; }
         public string FileName { get; set; }
         public string Content { get; set; }
         public IEnumerable<string> CreateObjects { get; set; }

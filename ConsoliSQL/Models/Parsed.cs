@@ -9,5 +9,6 @@ namespace ConsoliSQL.Models
     {
         public string Script { get; set; }
         public string DotNotation { get; set; }
+        public IEnumerable<ScriptFile> ScriptFiles { get; set; }
     }
 }

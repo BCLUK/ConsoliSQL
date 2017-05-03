@@ -1,0 +1,166 @@
+-- =============================================
+-- Author: Mark Birch
+-- Script Name: GER01. CREATE_REST_MAPPINGS.sql
+-- Create date: 11-MAY-2016
+-- Description:	To insert settings for Global Extras mappings
+-- =============================================
+-- Usage : Run through SQL Query Analyser
+-- Error Handling : None Expected
+-- =============================================
+-- Version: 2
+-- Date: 22/06/2016
+-- =============================================
+-- Changes: 22/06/2016: MCB: Now includes Client Number 
+-- =============================================
+
+SET NOCOUNT ON;
+
+DELETE FROM xCABS_CONFIG_TABLE
+WHERE [SECTION] IN('GlobalExtras_RestCodes')
+GO
+
+IF (SELECT COUNT(*) FROM xCABS_CONFIG_TABLE WHERE [DELETED] = 0 AND [SECTION] = 'GlobalExtras_RestCodes' AND [KEY] = 'ACAC') = 0 
+BEGIN 
+INSERT INTO xCABS_CONFIG_TABLE
+([TYPE], [SOURCE], [SECTION], [KEY], [VALUE], [DELETED], [CHANGE_BY], [CHANGE_UTC])
+VALUES
+('S', '', 'GlobalExtras_RestCodes', 'ACAC', 'CRMR~BMC', '0', 'cc', GETUTCDATE())
+END
+GO
+IF (SELECT COUNT(*) FROM xCABS_CONFIG_TABLE WHERE [DELETED] = 0 AND [SECTION] = 'GlobalExtras_RestCodes' AND [KEY] = 'ACACB') = 0 
+BEGIN 
+INSERT INTO xCABS_CONFIG_TABLE
+([TYPE], [SOURCE], [SECTION], [KEY], [VALUE], [DELETED], [CHANGE_BY], [CHANGE_UTC])
+VALUES
+('S', '', 'GlobalExtras_RestCodes', 'ACACB', 'ACL~AB', '0', 'cc', GETUTCDATE())
+END
+GO
+IF (SELECT COUNT(*) FROM xCABS_CONFIG_TABLE WHERE [DELETED] = 0 AND [SECTION] = 'GlobalExtras_RestCodes' AND [KEY] = 'ACAFC') = 0 
+BEGIN 
+INSERT INTO xCABS_CONFIG_TABLE
+([TYPE], [SOURCE], [SECTION], [KEY], [VALUE], [DELETED], [CHANGE_BY], [CHANGE_UTC])
+VALUES
+('S', '', 'GlobalExtras_RestCodes', 'ACAFC', 'CRMR~DAT', '0', 'cc', GETUTCDATE())
+END
+GO
+IF (SELECT COUNT(*) FROM xCABS_CONFIG_TABLE WHERE [DELETED] = 0 AND [SECTION] = 'GlobalExtras_RestCodes' AND [KEY] = 'ACAL') = 0 
+BEGIN 
+INSERT INTO xCABS_CONFIG_TABLE
+([TYPE], [SOURCE], [SECTION], [KEY], [VALUE], [DELETED], [CHANGE_BY], [CHANGE_UTC])
+VALUES
+('S', '', 'GlobalExtras_RestCodes', 'ACAL', 'ACL1~CL', '0', 'cc', GETUTCDATE())
+END
+GO
+IF (SELECT COUNT(*) FROM xCABS_CONFIG_TABLE WHERE [DELETED] = 0 AND [SECTION] = 'GlobalExtras_RestCodes' AND [KEY] = 'ACAMC') = 0 
+BEGIN 
+INSERT INTO xCABS_CONFIG_TABLE
+([TYPE], [SOURCE], [SECTION], [KEY], [VALUE], [DELETED], [CHANGE_BY], [CHANGE_UTC])
+VALUES
+('S', '', 'GlobalExtras_RestCodes', 'ACAMC', 'CRMR~BMC', '0', 'cc', GETUTCDATE())
+END
+GO
+IF (SELECT COUNT(*) FROM xCABS_CONFIG_TABLE WHERE [DELETED] = 0 AND [SECTION] = 'GlobalExtras_RestCodes' AND [KEY] = 'ACBR') = 0 
+BEGIN 
+INSERT INTO xCABS_CONFIG_TABLE
+([TYPE], [SOURCE], [SECTION], [KEY], [VALUE], [DELETED], [CHANGE_BY], [CHANGE_UTC])
+VALUES
+('S', '', 'GlobalExtras_RestCodes', 'ACBR', 'DRMB~AB', '0', 'cc', GETUTCDATE())
+END
+GO
+IF (SELECT COUNT(*) FROM xCABS_CONFIG_TABLE WHERE [DELETED] = 0 AND [SECTION] = 'GlobalExtras_RestCodes' AND [KEY] = 'ACCD') = 0 
+BEGIN 
+INSERT INTO xCABS_CONFIG_TABLE
+([TYPE], [SOURCE], [SECTION], [KEY], [VALUE], [DELETED], [CHANGE_BY], [CHANGE_UTC])
+VALUES
+('S', '', 'GlobalExtras_RestCodes', 'ACCD', 'ACL3~EDI', '0', 'cc', GETUTCDATE())
+END
+GO
+IF (SELECT COUNT(*) FROM xCABS_CONFIG_TABLE WHERE [DELETED] = 0 AND [SECTION] = 'GlobalExtras_RestCodes' AND [KEY] = 'ACCLU') = 0 
+BEGIN 
+INSERT INTO xCABS_CONFIG_TABLE
+([TYPE], [SOURCE], [SECTION], [KEY], [VALUE], [DELETED], [CHANGE_BY], [CHANGE_UTC])
+VALUES
+('S', '', 'GlobalExtras_RestCodes', 'ACCLU', 'DRML~CL', '0', 'cc', GETUTCDATE())
+END
+GO
+IF (SELECT COUNT(*) FROM xCABS_CONFIG_TABLE WHERE [DELETED] = 0 AND [SECTION] = 'GlobalExtras_RestCodes' AND [KEY] = 'ACDR') = 0 
+BEGIN 
+INSERT INTO xCABS_CONFIG_TABLE
+([TYPE], [SOURCE], [SECTION], [KEY], [VALUE], [DELETED], [CHANGE_BY], [CHANGE_UTC])
+VALUES
+('S', '', 'GlobalExtras_RestCodes', 'ACDR', 'DRMD~EDI', '0', 'cc', GETUTCDATE())
+END
+GO
+IF (SELECT COUNT(*) FROM xCABS_CONFIG_TABLE WHERE [DELETED] = 0 AND [SECTION] = 'GlobalExtras_RestCodes' AND [KEY] = 'ACEAC') = 0 
+BEGIN 
+INSERT INTO xCABS_CONFIG_TABLE
+([TYPE], [SOURCE], [SECTION], [KEY], [VALUE], [DELETED], [CHANGE_BY], [CHANGE_UTC])
+VALUES
+('S', '', 'GlobalExtras_RestCodes', 'ACEAC', 'EWCR~BMC', '0', 'cc', GETUTCDATE())
+END
+GO
+IF (SELECT COUNT(*) FROM xCABS_CONFIG_TABLE WHERE [DELETED] = 0 AND [SECTION] = 'GlobalExtras_RestCodes' AND [KEY] = 'ACEACE') = 0 
+BEGIN 
+INSERT INTO xCABS_CONFIG_TABLE
+([TYPE], [SOURCE], [SECTION], [KEY], [VALUE], [DELETED], [CHANGE_BY], [CHANGE_UTC])
+VALUES
+('S', '', 'GlobalExtras_RestCodes', 'ACEACE', 'EWCR~DAT', '0', 'cc', GETUTCDATE())
+END
+GO
+IF (SELECT COUNT(*) FROM xCABS_CONFIG_TABLE WHERE [DELETED] = 0 AND [SECTION] = 'GlobalExtras_RestCodes' AND [KEY] = 'ACEHL') = 0 
+BEGIN 
+INSERT INTO xCABS_CONFIG_TABLE
+([TYPE], [SOURCE], [SECTION], [KEY], [VALUE], [DELETED], [CHANGE_BY], [CHANGE_UTC])
+VALUES
+('S', '', 'GlobalExtras_RestCodes', 'ACEHL', 'EWREST~CL', '0', 'cc', GETUTCDATE())
+END
+GO
+IF (SELECT COUNT(*) FROM xCABS_CONFIG_TABLE WHERE [DELETED] = 0 AND [SECTION] = 'GlobalExtras_RestCodes' AND [KEY] = 'ACEMCC') = 0 
+BEGIN 
+INSERT INTO xCABS_CONFIG_TABLE
+([TYPE], [SOURCE], [SECTION], [KEY], [VALUE], [DELETED], [CHANGE_BY], [CHANGE_UTC])
+VALUES
+('S', '', 'GlobalExtras_RestCodes', 'ACEMCC', 'EWCR~BMC', '0', 'cc', GETUTCDATE())
+END
+GO
+IF (SELECT COUNT(*) FROM xCABS_CONFIG_TABLE WHERE [DELETED] = 0 AND [SECTION] = 'GlobalExtras_RestCodes' AND [KEY] = 'ACESL') = 0 
+BEGIN 
+INSERT INTO xCABS_CONFIG_TABLE
+([TYPE], [SOURCE], [SECTION], [KEY], [VALUE], [DELETED], [CHANGE_BY], [CHANGE_UTC])
+VALUES
+('S', '', 'GlobalExtras_RestCodes', 'ACESL', 'RSL~', '0', 'cc', GETUTCDATE())
+END
+GO
+IF (SELECT COUNT(*) FROM xCABS_CONFIG_TABLE WHERE [DELETED] = 0 AND [SECTION] = 'GlobalExtras_RestCodes' AND [KEY] = 'ACESLU') = 0 
+BEGIN 
+INSERT INTO xCABS_CONFIG_TABLE
+([TYPE], [SOURCE], [SECTION], [KEY], [VALUE], [DELETED], [CHANGE_BY], [CHANGE_UTC])
+VALUES
+('S', '', 'GlobalExtras_RestCodes', 'ACESLU', 'ESL~', '0', 'cc', GETUTCDATE())
+END
+GO
+IF (SELECT COUNT(*) FROM xCABS_CONFIG_TABLE WHERE [DELETED] = 0 AND [SECTION] = 'GlobalExtras_RestCodes' AND [KEY] = 'ACRECD') = 0 
+BEGIN 
+INSERT INTO xCABS_CONFIG_TABLE
+([TYPE], [SOURCE], [SECTION], [KEY], [VALUE], [DELETED], [CHANGE_BY], [CHANGE_UTC])
+VALUES
+('S', '', 'GlobalExtras_RestCodes', 'ACRECD', 'CMRREC~FEV', '0', 'cc', GETUTCDATE())
+END
+GO
+IF (SELECT COUNT(*) FROM xCABS_CONFIG_TABLE WHERE [DELETED] = 0 AND [SECTION] = 'GlobalExtras_RestCodes' AND [KEY] = 'ClientNo') = 0 
+BEGIN 
+INSERT INTO xCABS_CONFIG_TABLE
+([TYPE], [SOURCE], [SECTION], [KEY], [VALUE], [DELETED], [CHANGE_BY], [CHANGE_UTC])
+VALUES
+('S', '', 'GlobalExtras_RestCodes', 'ClientNo', 'C007906', '0', 'cc', GETUTCDATE())
+END
+GO
+IF (SELECT COUNT(*) FROM xCABS_CONFIG_TABLE WHERE [DELETED] = 0 AND [SECTION] = 'GlobalExtras_RestCodes' AND [KEY] = 'Include') = 0 
+BEGIN 
+INSERT INTO xCABS_CONFIG_TABLE
+([TYPE], [SOURCE], [SECTION], [KEY], [VALUE], [DELETED], [CHANGE_BY], [CHANGE_UTC])
+VALUES
+('S', '', 'GlobalExtras_RestCodes', 'Include', 'ACAC, ACACB, ACAFC, ACAL, ACAMC, ACBR, ACCD, ACCLU, ACDR, ACEAC, ACEACE, ACEHL, ACEMCC, ACESL, ACESLU, ACRECD', '0', 'cc', GETUTCDATE())
+END
+GO
+

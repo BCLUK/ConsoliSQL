@@ -28,13 +28,13 @@ namespace ConsoliSQL.Controllers
         {
             if (ModelState.IsValid)
             {
-                var dump = new HashSet<ScriptFile>();
+                var scriptFiles = new HashSet<ScriptFile>();
 
                 foreach (var file in model.Files)
                 {
                     var createObjects = new List<string>();
                     var dependsOn = new List<string>();
-                    var sqlStatement = new System.Text.StringBuilder();
+                    var sqlStatement = new StringBuilder();
 
                     using (var reader = new StreamReader(file.InputStream))
                     using (var stringReader = new StringReader(reader.ReadToEnd()))
@@ -62,23 +62,15 @@ namespace ConsoliSQL.Controllers
                     dependsOn.RemoveAll(x => SqlSystemObjects.Instance.Objects.Contains(x) || x.StartsWith("#"));
                     dependsOn = dependsOn.Distinct().ToList();
 
-                    dump.Add(new ScriptFile { FileName = file.FileName, Content = sqlStatement.ToString(), CreateObjects = createObjects, DependsOn = dependsOn });
+                    scriptFiles.Add(new ScriptFile { FileName = file.FileName, Content = sqlStatement.ToString(), CreateObjects = createObjects, DependsOn = dependsOn });
                 }
 
                 var dependencyGraph = new AdjacencyGraph<ScriptFile, SEdge<ScriptFile>>();
 
                 var map = new Dictionary<string, ScriptFile>();
 
-                foreach (var scriptFile in dump)
+                foreach (var scriptFile in scriptFiles)
                 {
-                    //dependencyGraph.AddVertex(scriptFile.Uid);
-
-                    /*foreach (var createObject in scriptFile.CreateObjects)
-                    {
-                        //dependencyGraph.AddVertex(createObject);
-                        dependencyGraph.AddVertex(new SqlObject { Name = createObject, SqlScript = scriptFile });
-                    }*/
-
                     foreach (var createObject in scriptFile.CreateObjects)
                     {
                         if (!map.ContainsKey(createObject))
@@ -87,17 +79,17 @@ namespace ConsoliSQL.Controllers
                         }
                     }
                 }
-
-                foreach (var value in map.Values)
+                
+                foreach (var scriptFile in scriptFiles)
                 {
-                    dependencyGraph.AddVertex(value);
+                    dependencyGraph.AddVertex(scriptFile);
                 }
 
-                foreach (var scriptFile in dump)
+                foreach (var scriptFile in scriptFiles)
                 {
                     foreach (var dependsOn in scriptFile.DependsOn)
                     {
-                        if (map.ContainsKey(dependsOn) && dependencyGraph.ContainsVertex(map[dependsOn]) && dependencyGraph.ContainsVertex(scriptFile) && !scriptFile.Equals(map[dependsOn]))
+                        if (map.ContainsKey(dependsOn) && !scriptFile.Equals(map[dependsOn]))
                         {
                             dependencyGraph.AddEdge(new SEdge<ScriptFile>(map[dependsOn], scriptFile));
                         }
@@ -119,7 +111,7 @@ namespace ConsoliSQL.Controllers
 
                 Console.WriteLine();
 
-                return View("Parsed", new Parsed { Script = output, DotNotation = dot });
+                return View("Parsed", new Parsed { Script = output, DotNotation = dot, ScriptFiles = scriptFiles });
             }
 
             return View();
