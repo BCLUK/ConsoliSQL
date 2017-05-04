@@ -1,15 +1,19 @@
 ﻿@model ConsoliSQL.Models.Home
 
 @{
-    ViewBag.Title = "Index";
+    ViewBag.Title = "Home";
 }
 
-<h2>Index</h2>
+<h2>Home</h2>
+
+<p>Upload SQL scripts and let the tool do the rest of the work...</p>
 
 @using (Html.BeginForm("Index", "Home", FormMethod.Post, new { enctype = "multipart/form-data" }))
 {
-    @Html.TextBoxFor(x => x.Files, new { type = "file", multiple = "multiple", accept = ".sql" })
-    @Html.ValidationMessageFor(x => x.Files)
+    <div class="form-group">
+        @Html.TextBoxFor(x => x.Files, new { @class = "form-control", type = "file", multiple = "multiple", accept = ".sql" })
+        @Html.ValidationMessageFor(x => x.Files)
+    </div>
 
-    <input type="submit" value="Consolidate" />
+    <input class="btn btn-default" type="submit" value="Consolidate" />
 }
