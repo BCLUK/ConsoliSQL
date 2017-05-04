@@ -39,7 +39,7 @@
 @foreach (var scriptFile in Model.ScriptFiles)
 {
     <ul>
-        <li><b>@scriptFile.FileName</b></li>
+        <li><b class="@(scriptFile.ParseErrors.Count() > 0 ? "parse-errors" : "")">@scriptFile.FileName <span class="@(scriptFile.ParseErrors.Count() > 0 ? "glyphicon glyphicon-exclamation-sign" : "")" data-toggle="tooltip" title="@string.Join(Environment.NewLine, scriptFile.ParseErrors)"></span></b></li>
         @if (scriptFile.CreateObjects.Count() > 0)
         {
             <li>
@@ -66,3 +66,7 @@
         }
     </ul>
 }
+
+<script>
+    $(".parse-errors > .glyphicon-exclamation-sign").tooltip();
+</script>

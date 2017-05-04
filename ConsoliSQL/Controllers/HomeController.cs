@@ -26,6 +26,11 @@ namespace ConsoliSQL.Controllers
         [HttpPost]
         public ActionResult Index(Home model)
         {
+            if (model.Files.Count() == 1 && model.Files.First() == null)
+            {
+                ModelState.AddModelError("Files", "No files have been selected.");
+            }
+
             if (ModelState.IsValid)
             {
                 var scriptFiles = new HashSet<ScriptFile>();
@@ -34,7 +39,6 @@ namespace ConsoliSQL.Controllers
                 {
                     var createObjects = new List<string>();
                     var dependsOn = new List<string>();
-                    var sqlStatement = new StringBuilder();
 
                     using (var reader = new StreamReader(file.InputStream))
                     using (var stringReader = new StringReader(reader.ReadToEnd()))
@@ -42,7 +46,7 @@ namespace ConsoliSQL.Controllers
                         var parser = new TSql140Parser(false);
                         IList<ParseError> parseErrors;
                         var parseContent = (TSqlScript)parser.Parse(stringReader, out parseErrors);
-                        
+
                         foreach (var batch in parseContent.Batches)
                         {
                             foreach (var statement in batch.Statements)
@@ -51,18 +55,23 @@ namespace ConsoliSQL.Controllers
                                 FindDependencies(statement, dependsOn);
                             }
                         }
-                        
+
+                        var sqlStatement = new StringBuilder();
+
                         for (int i = parseContent.FirstTokenIndex; i <= parseContent.LastTokenIndex; i++)
                         {
                             sqlStatement.Append(parseContent.ScriptTokenStream[i].Text);
                         }
+
+                        sqlStatement.AppendLine();
+                        sqlStatement.AppendLine("GO");
+
+                        createObjects.RemoveAll(x => x.StartsWith("#"));
+                        dependsOn.RemoveAll(x => SqlSystemObjects.Instance.Objects.Contains(x) || x.StartsWith("#"));
+                        dependsOn = dependsOn.Distinct().ToList();
+
+                        scriptFiles.Add(new ScriptFile { FileName = file.FileName, Content = sqlStatement.ToString(), CreateObjects = createObjects, DependsOn = dependsOn, ParseErrors = parseErrors.Select(x => $"{x.Message} Line: {x.Line}") });
                     }
-
-                    createObjects.RemoveAll(x => x.StartsWith("#"));
-                    dependsOn.RemoveAll(x => SqlSystemObjects.Instance.Objects.Contains(x) || x.StartsWith("#"));
-                    dependsOn = dependsOn.Distinct().ToList();
-
-                    scriptFiles.Add(new ScriptFile { FileName = file.FileName, Content = sqlStatement.ToString(), CreateObjects = createObjects, DependsOn = dependsOn });
                 }
 
                 var dependencyGraph = new AdjacencyGraph<ScriptFile, SEdge<ScriptFile>>();
@@ -79,7 +88,7 @@ namespace ConsoliSQL.Controllers
                         }
                     }
                 }
-                
+
                 foreach (var scriptFile in scriptFiles)
                 {
                     dependencyGraph.AddVertex(scriptFile);
@@ -97,20 +106,28 @@ namespace ConsoliSQL.Controllers
                 }
 
                 var dot = Visualizer.ToDotNotation(dependencyGraph);
-                
+
                 var orderedScripts = dependencyGraph.TopologicalSort();
 
                 var script = new StringBuilder();
 
-                foreach (var scriptt in orderedScripts)
+                if (model.WrapTransaction)
                 {
-                    script.AppendLine(scriptt.Content);
+                    script.AppendLine("BEGIN TRANSACTION");
+                }
+
+                foreach (var scriptFile in orderedScripts)
+                {
+                    script.AppendLine(scriptFile.Content);
+                }
+
+                if (model.WrapTransaction)
+                {
+                    script.AppendLine("ROLLBACK");
                 }
 
                 var output = script.ToString();
-
-                Console.WriteLine();
-
+                
                 return View("Parsed", new Parsed { Script = output, DotNotation = dot, ScriptFiles = scriptFiles });
             }
 

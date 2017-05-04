@@ -8,7 +8,7 @@ namespace ConsoliSQL.Models
 {
     public class Home
     {
-        [Required]
         public IEnumerable<HttpPostedFileBase> Files { get; set; }
+        public bool WrapTransaction { get; set; }
     }
 }
