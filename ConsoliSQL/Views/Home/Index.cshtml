@@ -14,9 +14,11 @@
         @Html.TextBoxFor(x => x.Files, new { @class = "form-control", type = "file", multiple = "multiple", accept = ".sql" })
     </div>
 
-    <div class="form-group">
+    <div class="checkbox">
         <label>@Html.CheckBoxFor(x => x.WrapTransaction) Wrap scripts in a transaction?</label>
-        <br />
+    </div>
+
+    <div class="checkbox">
         <label>@Html.CheckBoxFor(x => x.AppendGo) Append a go after every script?</label>
     </div>
 
