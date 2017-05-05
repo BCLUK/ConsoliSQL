@@ -17,6 +17,9 @@
     <div class="form-group">
         @Html.CheckBoxFor(x => x.WrapTransaction)
         <span> Wrap scripts in a transaction?</span>
+        <br />
+        @Html.CheckBoxFor(x => x.AppendGo)
+        <span> Append a go after every script?</span>
     </div>
 
     <div class="form-group">

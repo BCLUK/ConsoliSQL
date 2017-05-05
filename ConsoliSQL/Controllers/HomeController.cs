@@ -64,7 +64,11 @@ namespace ConsoliSQL.Controllers
                         }
 
                         sqlStatement.AppendLine();
-                        sqlStatement.AppendLine("GO");
+
+                        if (model.AppendGo)
+                        {
+                            sqlStatement.AppendLine("GO");
+                        }
 
                         createObjects.RemoveAll(x => x.StartsWith("#"));
                         dependsOn.RemoveAll(x => SqlSystemObjects.Instance.Objects.Contains(x) || x.StartsWith("#"));

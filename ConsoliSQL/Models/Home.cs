@@ -10,5 +10,6 @@ namespace ConsoliSQL.Models
     {
         public IEnumerable<HttpPostedFileBase> Files { get; set; }
         public bool WrapTransaction { get; set; }
+        public bool AppendGo { get; set; }
     }
 }
