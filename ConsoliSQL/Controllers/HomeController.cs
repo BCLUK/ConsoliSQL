@@ -15,20 +15,27 @@ namespace ConsoliSQL.Controllers
 {
     public class HomeController : Controller
     {
-        // GET: Home
         public ActionResult Index()
         {
-            var test = SqlSystemObjects.Instance.Objects;
-
             return View();
         }
+
+        const string BEGIN_TRAN = "BEGIN TRAN";
+        const string END_TRAN = "ROLLBACK";
+
+        const string BATCH_SEPERATOR = "GO";
+
+        const string WINDOWS_LINE_ENDING = "\r\n";
+        const string UNIX_LINE_ENDING = "\n";
+
+        const string ERROR_MESSAGE_FILES = "No files have been selected.";
 
         [HttpPost]
         public ActionResult Index(Home model)
         {
             if (model.Files.Count() == 1 && model.Files.First() == null)
             {
-                ModelState.AddModelError("Files", "No files have been selected.");
+                ModelState.AddModelError("Files", ERROR_MESSAGE_FILES);
             }
 
             if (ModelState.IsValid)
@@ -67,7 +74,7 @@ namespace ConsoliSQL.Controllers
 
                         if (model.AppendGo)
                         {
-                            sqlStatement.AppendLine("GO");
+                            sqlStatement.AppendLine(BATCH_SEPERATOR);
                         }
 
                         createObjects.RemoveAll(x => x.StartsWith("#"));
@@ -117,7 +124,7 @@ namespace ConsoliSQL.Controllers
 
                 if (model.WrapTransaction)
                 {
-                    script.AppendLine("BEGIN TRANSACTION");
+                    script.AppendLine(BEGIN_TRAN);
                 }
 
                 foreach (var scriptFile in orderedScripts)
@@ -127,10 +134,15 @@ namespace ConsoliSQL.Controllers
 
                 if (model.WrapTransaction)
                 {
-                    script.AppendLine("ROLLBACK");
+                    script.AppendLine(END_TRAN);
                 }
 
                 var output = script.ToString();
+
+                if (model.NormaliseLineEndings)
+                {
+                    output = output.Replace(WINDOWS_LINE_ENDING, UNIX_LINE_ENDING).Replace(UNIX_LINE_ENDING, WINDOWS_LINE_ENDING);
+                }
                 
                 return View("Parsed", new Parsed { Script = output, DotNotation = dot, ScriptFiles = scriptFiles });
             }
@@ -246,7 +258,6 @@ namespace ConsoliSQL.Controllers
             if (obj.GetType() == typeof(CreateFunctionStatement))
             {
                 list.Add(((CreateFunctionStatement)obj).Name.BaseIdentifier.Value);
-
                 return true;
             }
             else if (obj.GetType() == typeof(CreateProcedureStatement))

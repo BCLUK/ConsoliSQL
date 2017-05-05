@@ -12,19 +12,20 @@
 {
     <div class="form-group">
         @Html.TextBoxFor(x => x.Files, new { @class = "form-control", type = "file", multiple = "multiple", accept = ".sql" })
+        @Html.ValidationMessageFor(x => x.Files, null, new { @class = "text-danger" })
     </div>
 
     <div class="checkbox">
-        <label>@Html.CheckBoxFor(x => x.WrapTransaction) Wrap scripts in a transaction?</label>
+        <label>@Html.CheckBoxFor(x => x.WrapTransaction) Wrap scripts in a transaction</label>
     </div>
 
     <div class="checkbox">
-        <label>@Html.CheckBoxFor(x => x.AppendGo) Append a go after every script?</label>
+        <label>@Html.CheckBoxFor(x => x.AppendGo) Append 'GO' to every script</label>
     </div>
 
-    <div class="form-group">
-        <input class="btn btn-default" type="submit" value="Consolidate" />
+    <div class="checkbox">
+        <label>@Html.CheckBoxFor(x => x.NormaliseLineEndings) Normalise line endings</label>
     </div>
+
+    <input class="btn btn-default" type="submit" value="Consolidate" />
 }
-
-@Html.ValidationSummary()
