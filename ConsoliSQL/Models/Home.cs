@@ -11,5 +11,6 @@ namespace ConsoliSQL.Models
         public bool WrapTransaction { get; set; }
         public bool AppendGo { get; set; }
         public bool NormaliseLineEndings { get; set; }
+        public bool CaseSensitive { get; set; }
     }
 }

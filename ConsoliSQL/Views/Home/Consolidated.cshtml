@@ -1,13 +1,11 @@
-﻿@model ConsoliSQL.Models.Parsed
+﻿@model ConsoliSQL.Models.Consolidated
 
 @{
-    ViewBag.Title = "Parsed";
+    ViewBag.Title = "Consolidated";
 }
 
 <script src="~/Scripts/viz.js"></script>
 <script src="~/Scripts/svg-pan-zoom.js"></script>
-
-<h2>Parsed</h2>
 
 <script>
     var svg = $(Viz("@Html.Raw(HttpUtility.JavaScriptStringEncode(Model.DotNotation))", { format: "svg" })).addClass("dot-svg");
@@ -36,28 +34,41 @@
 
 <hr />
 
+@if (Model.ScriptFiles.Any(x => x.ParseErrors.Any()))
+{
+    <div class="alert alert-warning">
+        <strong>Warning!</strong> There were errors when trying to parse @(Model.ScriptFiles.Count(x => x.ParseErrors.Any())) file(s).
+    </div>
+}
+else
+{
+    <div class="alert alert-success">
+        <strong>Success!</strong> @Model.ScriptFiles.Count() scripts were parsed and consolidated successfully!
+    </div>
+}
+
 @foreach (var scriptFile in Model.ScriptFiles)
 {
     <ul>
         <li><b class="@(scriptFile.ParseErrors.Count() > 0 ? "text-danger" : "")">@scriptFile.FileName <span class="@(scriptFile.ParseErrors.Count() > 0 ? "glyphicon glyphicon-exclamation-sign" : "")" data-toggle="tooltip" title="@string.Join(Environment.NewLine, scriptFile.ParseErrors)"></span></b></li>
-        @if (scriptFile.CreateObjects.Count() > 0)
+        @if (scriptFile.ObjectsCreated.Count() > 0)
         {
             <li>
                 <i>Creates</i>
                 <ul>
-                    @foreach (var createObject in scriptFile.CreateObjects)
+                    @foreach (var createObject in scriptFile.ObjectsCreated)
                     {
                         <li>@createObject</li>
                     }
                 </ul>
             </li>
         }
-        @if (scriptFile.DependsOn.Count() > 0)
+        @if (scriptFile.DependsOnObjects.Count() > 0)
         {
             <li>
                 <i>Depends On</i>
                 <ul>
-                    @foreach (var dependsObject in scriptFile.DependsOn)
+                    @foreach (var dependsObject in scriptFile.DependsOnObjects)
                     {
                         <li>@dependsObject</li>
                     }
@@ -68,5 +79,5 @@
 }
 
 <script>
-    $(".parse-errors > .glyphicon-exclamation-sign").tooltip();
+    $("[data-toggle='tooltip']").tooltip();
 </script>

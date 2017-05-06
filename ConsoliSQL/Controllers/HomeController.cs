@@ -44,8 +44,8 @@ namespace ConsoliSQL.Controllers
 
                 foreach (var file in model.Files)
                 {
-                    var createObjects = new List<string>();
-                    var dependsOn = new List<string>();
+                    var creates = new HashSet<string>(model.CaseSensitive ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase);
+                    var dependsOn = new HashSet<string>(model.CaseSensitive ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase);
 
                     using (var reader = new StreamReader(file.InputStream))
                     using (var stringReader = new StringReader(reader.ReadToEnd()))
@@ -58,8 +58,8 @@ namespace ConsoliSQL.Controllers
                         {
                             foreach (var statement in batch.Statements)
                             {
-                                GetParents(statement, createObjects);
-                                FindDependencies(statement, dependsOn);
+                                Helpers.FindCreateStatements(statement, creates);
+                                Helpers.FindDependencies(statement, dependsOn);
                             }
                         }
 
@@ -76,30 +76,35 @@ namespace ConsoliSQL.Controllers
                         {
                             sqlStatement.AppendLine(BATCH_SEPERATOR);
                         }
+                        
+                        creates.RemoveWhere(x => x.StartsWith("#"));
+                        dependsOn.RemoveWhere(x => x.StartsWith("#") || SqlSystemObjects.Instance.Objects.Contains(x));
 
-                        createObjects.RemoveAll(x => x.StartsWith("#"));
-                        dependsOn.RemoveAll(x => SqlSystemObjects.Instance.Objects.Contains(x) || x.StartsWith("#"));
-                        dependsOn = dependsOn.Distinct().ToList();
-
-                        scriptFiles.Add(new ScriptFile { FileName = file.FileName, Content = sqlStatement.ToString(), CreateObjects = createObjects, DependsOn = dependsOn, ParseErrors = parseErrors.Select(x => $"{x.Message} Line: {x.Line}") });
+                        scriptFiles.Add(new ScriptFile
+                        {
+                            FileName = file.FileName,
+                            Content = sqlStatement.ToString(),
+                            ObjectsCreated = creates,
+                            DependsOnObjects = dependsOn,
+                            ParseErrors = parseErrors.Select(x => $"{x.Message} Line: {x.Line}")
+                        });
                     }
                 }
 
-                var dependencyGraph = new AdjacencyGraph<ScriptFile, SEdge<ScriptFile>>();
-
-                var map = new Dictionary<string, ScriptFile>();
-
+                // This probably needs a check for case sensitivity.
+                var dependencyMap = new Dictionary<string, ScriptFile>();
                 foreach (var scriptFile in scriptFiles)
                 {
-                    foreach (var createObject in scriptFile.CreateObjects)
+                    foreach (var createObject in scriptFile.ObjectsCreated)
                     {
-                        if (!map.ContainsKey(createObject))
+                        if (!dependencyMap.ContainsKey(createObject))
                         {
-                            map.Add(createObject, scriptFile);
+                            dependencyMap.Add(createObject, scriptFile);
                         }
                     }
                 }
 
+                var dependencyGraph = new AdjacencyGraph<ScriptFile, SEdge<ScriptFile>>();
                 foreach (var scriptFile in scriptFiles)
                 {
                     dependencyGraph.AddVertex(scriptFile);
@@ -107,19 +112,17 @@ namespace ConsoliSQL.Controllers
 
                 foreach (var scriptFile in scriptFiles)
                 {
-                    foreach (var dependsOn in scriptFile.DependsOn)
+                    foreach (var dependancyObject in scriptFile.DependsOnObjects)
                     {
-                        if (map.ContainsKey(dependsOn) && !scriptFile.Equals(map[dependsOn]))
+                        if (dependencyMap.ContainsKey(dependancyObject) && !scriptFile.Equals(dependencyMap[dependancyObject]))
                         {
-                            dependencyGraph.AddEdge(new SEdge<ScriptFile>(map[dependsOn], scriptFile));
+                            dependencyGraph.AddEdge(new SEdge<ScriptFile>(dependencyMap[dependancyObject], scriptFile));
                         }
                     }
                 }
 
                 var dot = Visualizer.ToDotNotation(dependencyGraph);
-
                 var orderedScripts = dependencyGraph.TopologicalSort();
-
                 var script = new StringBuilder();
 
                 if (model.WrapTransaction)
@@ -138,168 +141,15 @@ namespace ConsoliSQL.Controllers
                 }
 
                 var output = script.ToString();
-
                 if (model.NormaliseLineEndings)
                 {
                     output = output.Replace(WINDOWS_LINE_ENDING, UNIX_LINE_ENDING).Replace(UNIX_LINE_ENDING, WINDOWS_LINE_ENDING);
                 }
                 
-                return View("Parsed", new Parsed { Script = output, DotNotation = dot, ScriptFiles = scriptFiles });
+                return View("Consolidated", new Consolidated { Script = output, DotNotation = dot, ScriptFiles = scriptFiles });
             }
 
             return View();
-        }
-        
-        public static void FindDependencies(object obj, List<string> list)
-        {
-            GetDependency(obj, list);
-
-            foreach (PropertyInfo prop in obj.GetType().GetProperties())
-            {
-                if (prop.Name == "ScriptTokenStream")
-                {
-                    return;
-                }
-
-                if (prop.CanRead)
-                {
-                    if (prop.GetIndexParameters().Length == 0)
-                    {
-                        var propVal = prop.GetValue(obj);
-                        if (propVal != null)
-                        {
-                            if (!GetDependency(propVal, list))
-                            {
-                                FindDependencies(propVal, list);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        public static bool GetDependency(object obj, List<string> list)
-        {
-            if (obj.GetType() == typeof(FunctionCall))
-            {
-                if (((FunctionCall)obj).CallTarget != null)
-                    list.Add(((FunctionCall)obj).FunctionName.Value);
-
-                return true;
-            }
-            else if (obj.GetType() == typeof(ExecutableProcedureReference))
-            {
-                // Possibly add ignore for m$ sprocs
-                list.Add(((ExecutableProcedureReference)obj).ProcedureReference.ProcedureReference.Name.BaseIdentifier.Value);
-                return true;
-            }
-            else if (obj.GetType() == typeof(NamedTableReference))
-            {
-                list.Add(((NamedTableReference)obj).SchemaObject.BaseIdentifier.Value);
-                return true;
-            }
-            else if (obj.GetType() == typeof(CreateIndexStatement))
-            {
-                list.Add(((CreateIndexStatement)obj).OnName.BaseIdentifier.Value);
-                return true;
-            }
-            else if (obj.GetType() == typeof(TriggerObject))
-            {
-                list.Add(((TriggerObject)obj).Name.BaseIdentifier.Value);
-                return true;
-            }
-            else if (obj.GetType() != typeof(string) && obj.GetType().GetInterfaces().Contains(typeof(System.Collections.IEnumerable)))
-            {
-                var coll = (System.Collections.IEnumerable)obj;
-
-                foreach (var item in coll)
-                {
-                    FindDependencies(item, list);
-                }
-
-                return true;
-            }
-            else
-            {
-                return false;
-            }
-        }
-
-        public static void GetParents(object obj, List<string> list)
-        {
-            GetDependency2(obj, list);
-
-            foreach (PropertyInfo prop in obj.GetType().GetProperties())
-            {
-                if (prop.Name == "ScriptTokenStream")
-                {
-                    return;
-                }
-
-                if (prop.CanRead)
-                {
-                    if (prop.GetIndexParameters().Length == 0)
-                    {
-                        var propVal = prop.GetValue(obj);
-                        if (propVal != null)
-                        {
-                            if (!GetDependency2(propVal, list))
-                            {
-                                GetParents(propVal, list);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        public static bool GetDependency2(object obj, List<string> list)
-        {
-            if (obj.GetType() == typeof(CreateFunctionStatement))
-            {
-                list.Add(((CreateFunctionStatement)obj).Name.BaseIdentifier.Value);
-                return true;
-            }
-            else if (obj.GetType() == typeof(CreateProcedureStatement))
-            {
-                list.Add(((CreateProcedureStatement)obj).ProcedureReference.Name.BaseIdentifier.Value);
-                return true;
-            }
-            else if (obj.GetType() == typeof(CreateViewStatement))
-            {
-                list.Add(((CreateViewStatement)obj).SchemaObjectName.BaseIdentifier.Value);
-                return true;
-            }
-            else if (obj.GetType() == typeof(CreateTriggerStatement))
-            {
-                list.Add(((CreateTriggerStatement)obj).Name.BaseIdentifier.Value);
-                return true;
-            }
-            else if (obj.GetType() == typeof(CreateIndexStatement))
-            {
-                list.Add(((CreateIndexStatement)obj).Name.Value);
-                return true;
-            }
-            else if (obj.GetType() == typeof(CreateTableStatement))
-            {
-                list.Add(((CreateTableStatement)obj).SchemaObjectName.BaseIdentifier.Value);
-                return true;
-            }
-            else if (obj.GetType() != typeof(string) && obj.GetType().GetInterfaces().Contains(typeof(System.Collections.IEnumerable)))
-            {
-                var coll = (System.Collections.IEnumerable)obj;
-
-                foreach (var item in coll)
-                {
-                    GetParents(item, list);
-                }
-
-                return true;
-            }
-            else
-            {
-                return false;
-            }
         }
     }
 }
