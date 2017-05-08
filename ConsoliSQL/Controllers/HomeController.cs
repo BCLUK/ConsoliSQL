@@ -1,4 +1,5 @@
 ﻿using ConsoliSQL.Models;
+using HtmlAgilityPack;
 using Microsoft.SqlServer.TransactSql.ScriptDom;
 using QuickGraph;
 using QuickGraph.Algorithms;
@@ -8,6 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Web;
 using System.Web.Mvc;
 
@@ -46,6 +48,8 @@ namespace ConsoliSQL.Controllers
                 {
                     var creates = new HashSet<string>(model.CaseSensitive ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase);
                     var dependsOn = new HashSet<string>(model.CaseSensitive ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase);
+                    var tempTokens = new List<int>();
+                    var html = new HtmlDocument();
 
                     using (var reader = new StreamReader(file.InputStream))
                     using (var stringReader = new StringReader(reader.ReadToEnd()))
@@ -59,15 +63,45 @@ namespace ConsoliSQL.Controllers
                             foreach (var statement in batch.Statements)
                             {
                                 Helpers.FindCreateStatements(statement, creates);
-                                Helpers.FindDependencies(statement, dependsOn);
+                                Helpers.FindDependencies(statement, dependsOn, tempTokens);
                             }
                         }
 
                         var sqlStatement = new StringBuilder();
+                        var tempSqlStatement = new StringBuilder();
 
                         for (int i = parseContent.FirstTokenIndex; i <= parseContent.LastTokenIndex; i++)
                         {
-                            sqlStatement.Append(parseContent.ScriptTokenStream[i].Text);
+                            var token = parseContent.ScriptTokenStream[i];
+                            if (token.Text != null)
+                            {
+                                sqlStatement.Append(token.Text);
+                                
+                                if (tempTokens.Contains(i))
+                                {
+                                    var span = html.CreateElement("mark");
+                                    if (SqlSystemObjects.Instance.Objects.Contains(token.Text))
+                                    {
+                                        span.SetAttributeValue("style", "background-color: #E0E0E0;");
+                                    }
+                                    else if (Regex.IsMatch(token.Text, "^##?"))
+                                    {
+                                        span.SetAttributeValue("style", "background-color: #A1887F;");
+                                    }
+                                    else
+                                    {
+                                        span.SetAttributeValue("style", "background-color: #FFF176;");
+                                    }
+
+                                    span.InnerHtml = token.Text;
+                                    
+                                    html.DocumentNode.AppendChild(span);
+                                }
+                                else
+                                {
+                                    html.DocumentNode.AppendChild(html.CreateTextNode(token.Text));
+                                }
+                            }
                         }
 
                         sqlStatement.AppendLine();
@@ -75,6 +109,7 @@ namespace ConsoliSQL.Controllers
                         if (model.AppendGo)
                         {
                             sqlStatement.AppendLine(BATCH_SEPERATOR);
+                            html.DocumentNode.AppendChild(html.CreateTextNode($"{Environment.NewLine}{BATCH_SEPERATOR}"));
                         }
                         
                         creates.RemoveWhere(x => x.StartsWith("#"));
@@ -86,20 +121,21 @@ namespace ConsoliSQL.Controllers
                             Content = sqlStatement.ToString(),
                             ObjectsCreated = creates,
                             DependsOnObjects = dependsOn,
-                            ParseErrors = parseErrors.Select(x => $"{x.Message} Line: {x.Line}")
+                            ParseErrors = parseErrors.Select(x => $"{x.Message} Line: {x.Line}"),
+                            Overview = html.DocumentNode.OuterHtml
                         });
                     }
                 }
-
-                // This probably needs a check for case sensitivity.
-                var dependencyMap = new Dictionary<string, ScriptFile>();
+                                
+                // Contains all objects that are 'CREATE'd and the script they are created in.
+                var createsToScript = new Dictionary<string, ScriptFile>(model.CaseSensitive ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase);
                 foreach (var scriptFile in scriptFiles)
                 {
                     foreach (var createObject in scriptFile.ObjectsCreated)
                     {
-                        if (!dependencyMap.ContainsKey(createObject))
+                        if (!createsToScript.ContainsKey(createObject))
                         {
-                            dependencyMap.Add(createObject, scriptFile);
+                            createsToScript.Add(createObject, scriptFile);
                         }
                     }
                 }
@@ -114,9 +150,9 @@ namespace ConsoliSQL.Controllers
                 {
                     foreach (var dependancyObject in scriptFile.DependsOnObjects)
                     {
-                        if (dependencyMap.ContainsKey(dependancyObject) && !scriptFile.Equals(dependencyMap[dependancyObject]))
+                        if (createsToScript.ContainsKey(dependancyObject) && !scriptFile.Equals(createsToScript[dependancyObject]))
                         {
-                            dependencyGraph.AddEdge(new SEdge<ScriptFile>(dependencyMap[dependancyObject], scriptFile));
+                            dependencyGraph.AddEdge(new SEdge<ScriptFile>(createsToScript[dependancyObject], scriptFile));
                         }
                     }
                 }

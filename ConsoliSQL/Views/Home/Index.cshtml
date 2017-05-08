@@ -36,6 +36,21 @@
     <input class="btn btn-default" type="submit" value="Consolidate" />
 }
 
+<hr />
+
+<p>Known issues...</p>
+
+<ul>
+    <li>
+        Doesn't take into consideration schemas.
+        <span class="glyphicon glyphicon-info-sign" data-toggle="tooltip" title="For example: creating a view named 'sysobjects' on the 'dbo' schema will be excluded because a system view with the same name exists on the 'sys' schema."></span>
+    </li>
+    <li>
+        Common table expressions are seen as dependant objects.
+        <span class="glyphicon glyphicon-info-sign" data-toggle="tooltip" title="Will only be a problem if you have a table with the same name as a common table expression."></span>
+    </li>
+</ul>
+
 <script>
     $("[data-toggle='tooltip']").tooltip();
 </script>

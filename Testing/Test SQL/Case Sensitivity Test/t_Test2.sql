@@ -1,0 +1,9 @@
+IF OBJECT_ID('Test', 'U') IS NOT NULL
+DROP TABLE Test
+GO
+
+CREATE TABLE Test
+(
+	Col1 VARCHAR(100)
+)
+GO
