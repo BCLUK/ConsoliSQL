@@ -9,8 +9,8 @@ namespace ConsoliSQL.Models
     {
         public string FileName { get; set; }
         public string Content { get; set; }
-        public IEnumerable<string> ObjectsCreated { get; set; }
-        public IEnumerable<string> DependsOnObjects { get; set; }
+        public IEnumerable<SqlObject> ObjectsCreated { get; set; }
+        public IEnumerable<SqlObject> DependsOnObjects { get; set; }
         public IEnumerable<string> ParseErrors { get; set; }
         public string Overview { get; set; }
 
