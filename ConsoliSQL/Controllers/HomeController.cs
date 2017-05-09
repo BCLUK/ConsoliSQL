@@ -47,9 +47,6 @@ namespace ConsoliSQL.Controllers
 
                 foreach (var file in model.Files)
                 {
-                    //var creates = new HashSet<string>(model.CaseSensitive ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase);
-                    //var dependsOn = new HashSet<string>(model.CaseSensitive ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase);
-                    //var tempTokens = new List<int>();
                     var sqlObjects = new HashSet<SqlObject>();
                     var scriptFile = new ScriptFile();
                     var html = new HtmlDocument();
@@ -65,19 +62,17 @@ namespace ConsoliSQL.Controllers
                         {
                             foreach (var statement in batch.Statements)
                             {
-                                //Helpers.FindCreateStatements(statement, creates);
                                 Helpers.FindDependencies(statement, sqlObjects, scriptFile);
                             }
                         }
 
                         scriptFile.FileName = Path.GetFileName(file.FileName);
-                        //scriptFile.ObjectsCreated = sqlObjects.Where(x => x.IsCreate).GroupBy(x => x.Name, model.CaseSensitive ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase).Select(x => x.First());
-                        //scriptFile.DependsOnObjects = sqlObjects.Where(x => !x.IsCreate).GroupBy(x => x.Name, model.CaseSensitive ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase).Select(x => x.First());
-                        scriptFile.ObjectsCreated = sqlObjects.Where(x => x.IsCreate);
-                        scriptFile.DependsOnObjects = sqlObjects.Where(x => !x.IsCreate);
+                        scriptFile.Creates = sqlObjects.Where(x => x.IsCreate);
+                        scriptFile.DependsOn = sqlObjects.Where(x => !x.IsCreate);
                         scriptFile.ParseErrors = parseErrors.Select(x => $"{x.Message} Line: {x.Line}");
 
                         var sqlStatement = new StringBuilder();
+                        var indiciesToObjects = scriptFile.DependsOn.ToDictionary(x => x.NameTokenIndex, x => x);
 
                         for (int i = parseContent.FirstTokenIndex; i <= parseContent.LastTokenIndex; i++)
                         {
@@ -86,14 +81,14 @@ namespace ConsoliSQL.Controllers
                             {
                                 sqlStatement.Append(token.Text);
                                 
-                                if (scriptFile.DependsOnObjects.Any(x => x.NameTokenIndex == i))
+                                if (indiciesToObjects.ContainsKey(i))
                                 {
                                     var span = html.CreateElement("mark");
-                                    if (SqlSystemObjects.Instance.Objects.Contains(token.Text))
+                                    if (indiciesToObjects[i].IsSystemObject)
                                     {
                                         span.SetAttributeValue("style", "background-color: #E0E0E0;");
                                     }
-                                    else if (Regex.IsMatch(token.Text, "^##?"))
+                                    else if (indiciesToObjects[i].Ignore)
                                     {
                                         span.SetAttributeValue("style", "background-color: #A1887F;");
                                     }
@@ -120,10 +115,7 @@ namespace ConsoliSQL.Controllers
                             sqlStatement.AppendLine(BATCH_SEPERATOR);
                             html.DocumentNode.AppendChild(html.CreateTextNode($"{Environment.NewLine}{BATCH_SEPERATOR}"));
                         }
-
-                        //creates.RemoveWhere(x => x.StartsWith("#"));
-                        //dependsOn.RemoveWhere(x => x.StartsWith("#") || SqlSystemObjects.Instance.Objects.Contains(x));
-
+                        
                         scriptFile.Content = sqlStatement.ToString();
                         scriptFile.Overview = html.DocumentNode.OuterHtml;
 
@@ -133,55 +125,26 @@ namespace ConsoliSQL.Controllers
 
                 sw.Stop();
                 System.Diagnostics.Debug.WriteLine($"Took {sw.ElapsedMilliseconds}ms to parse");
-
-                // Contains all objects that are 'CREATE'd and the script they are created in.
-                //var createsToScript = new Dictionary<string, ScriptFile>(model.CaseSensitive ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase);
-                //foreach (var scriptFile in scriptFiles)
-                //{
-                //    foreach (var createObject in scriptFile.ObjectsCreated)
-                //    {
-                //        if (!createsToScript.ContainsKey(createObject.Name))
-                //        {
-                //            createsToScript.Add(createObject.Name, scriptFile);
-                //        }
-                //    }
-                //}
-
-                //var dependencyGraph = new AdjacencyGraph<ScriptFile, SEdge<ScriptFile>>();
-                //foreach (var scriptFile in scriptFiles)
-                //{
-                //    dependencyGraph.AddVertex(scriptFile);
-                //}
-
-                //foreach (var scriptFile in scriptFiles)
-                //{
-                //    foreach (var dependancyObject in scriptFile.DependsOnObjects)
-                //    {
-                //        if (createsToScript.ContainsKey(dependancyObject.Name) && !scriptFile.Equals(createsToScript[dependancyObject.Name]) && !dependencyGraph.ContainsEdge(createsToScript[dependancyObject.Name], scriptFile) && !dependencyGraph.ContainsEdge(scriptFile, createsToScript[dependancyObject.Name]))
-                //        {
-                //            dependencyGraph.AddEdge(new SEdge<ScriptFile>(createsToScript[dependancyObject.Name], scriptFile));
-                //        }
-                //    }
-                //}
-
+                
                 var dependencyGraph = new AdjacencyGraph<ScriptFile, SEdge<ScriptFile>>();
                 foreach (var scriptFile in scriptFiles)
                 {
                     dependencyGraph.AddVertex(scriptFile);
                 }
-
+                
                 foreach (var scriptFile in scriptFiles)
                 {
-                    foreach (var depObj in scriptFile.DependsOnObjects)
+                    foreach (var depObj in scriptFile.FilteredDependsOn())
                     {
-                        var createScript = scriptFiles.FirstOrDefault(x => x != scriptFile && x.ObjectsCreated.Any(y => y.Name.Equals(depObj.Name)));
-                        if (createScript != null && !createScript.Equals(scriptFile) && !dependencyGraph.ContainsEdge(createScript, scriptFile))
+                        var createObj = scriptFiles.SelectMany(x => x.Creates.Where(y => y.IsCreate && !y.Ignore && y.Type == depObj.Type && y.Name.Equals(depObj.Name, model.CaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase))).FirstOrDefault();
+
+                        if (createObj != null && !dependencyGraph.ContainsEdge(createObj.File, scriptFile) && !createObj.File.Equals(scriptFile))
                         {
-                            dependencyGraph.AddEdge(new SEdge<ScriptFile>(createScript, scriptFile));
+                            dependencyGraph.AddEdge(new SEdge<ScriptFile>(createObj.File, scriptFile));
                         }
                     }
                 }
-
+                
                 var dot = Visualizer.ToDotNotation(dependencyGraph);
                 var orderedScripts = dependencyGraph.TopologicalSort();
                 var script = new StringBuilder();
@@ -206,8 +169,22 @@ namespace ConsoliSQL.Controllers
                 {
                     output = output.Replace(WINDOWS_LINE_ENDING, UNIX_LINE_ENDING).Replace(UNIX_LINE_ENDING, WINDOWS_LINE_ENDING);
                 }
-                
-                return View("Consolidated", new Consolidated { Script = output, DotNotation = dot, ScriptFiles = scriptFiles });
+
+                var filteredScriptFiles = scriptFiles.Select(x => 
+                {
+                    x.Creates = x.FilteredCreates();
+                    x.DependsOn = x.UniqueFilteredDependsOn(model.CaseSensitive);
+                    return x;
+                });
+
+                /*
+                 * Display warning if multiple scripts are creating duplicate object (name==name && type==type)
+                 * Add code for Prepend IF EXISTS DROP
+                 * Improve parse time
+                 * Add pop out graph
+                */
+
+                return View("Consolidated", new Consolidated { Script = output, DotNotation = dot, ScriptFiles = filteredScriptFiles });
             }
 
             return View();

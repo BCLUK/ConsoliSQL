@@ -14,6 +14,8 @@ namespace ConsoliSQL.Models
             IsCreate = isCreate;
             NameTokenIndex = nameTokenIndex;
             File = file;
+            Ignore = IsTemporaryTable(Name);
+            IsSystemObject = SqlSystemObjects.Instance.Objects.Contains(Name); // Good idea to fetch system objects with their type and improve this check..
         }
 
         public string Name { get; set; }
@@ -21,6 +23,11 @@ namespace ConsoliSQL.Models
         public bool IsCreate { get; set; }
         public int NameTokenIndex { get; set; }
         public ScriptFile File { get; set; }
+        public bool Ignore { get; set; }
+        public bool IsSystemObject { get; set; }
+
+        private static bool IsTemporaryTable(string name) =>
+            System.Text.RegularExpressions.Regex.IsMatch(name, "^##?");
     }
 
     public enum SqlObjectType

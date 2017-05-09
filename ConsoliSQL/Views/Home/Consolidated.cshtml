@@ -54,24 +54,24 @@ else
             <b class="@(scriptFile.ParseErrors.Count() > 0 ? "text-danger" : "")">@scriptFile.FileName <span class="@(scriptFile.ParseErrors.Count() > 0 ? "glyphicon glyphicon-exclamation-sign" : "")" data-toggle="tooltip" title="@string.Join(Environment.NewLine, scriptFile.ParseErrors)"></span></b>
             <span class="glyphicon glyphicon-search" role="button"></span>
         </li>
-        @if (scriptFile.ObjectsCreated.Count() > 0)
+        @if (scriptFile.Creates.Count() > 0)
         {
             <li>
                 <i>Creates</i>
                 <ul>
-                    @foreach (var createObject in scriptFile.ObjectsCreated)
+                    @foreach (var createObject in scriptFile.Creates)
                     {
                         <li>@createObject.Name</li>
                     }
                 </ul>
             </li>
         }
-        @if (scriptFile.DependsOnObjects.Count() > 0)
+        @if (scriptFile.DependsOn.Count() > 0)
         {
             <li>
                 <i>Depends On</i>
                 <ul>
-                    @foreach (var dependsObject in scriptFile.DependsOnObjects)
+                    @foreach (var dependsObject in scriptFile.DependsOn)
                     {
                         <li>@dependsObject.Name</li>
                     }

@@ -33,6 +33,11 @@
         <span class="glyphicon glyphicon-info-sign" data-toggle="tooltip" title="EXAMPLE_OBJECT and example_object will be seen as two unique objects."></span>
     </div>
 
+    <div class="checkbox">
+        <label>@Html.CheckBoxFor(x => x.PrependDrops) Prepend IF EXISTS DROP</label>
+        <span class="glyphicon glyphicon-info-sign" data-toggle="tooltip" title="Prepends an existance/drop check to every script that creates an object."></span>
+    </div>
+
     <input class="btn btn-default" type="submit" value="Consolidate" />
 }
 
