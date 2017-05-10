@@ -18,6 +18,11 @@ namespace ConsoliSQL.Models
             IsSystemObject = SqlSystemObjects.Instance.Objects.Contains(Name); // Good idea to fetch system objects with their type and improve this check..
         }
 
+        public SqlObject(string name, SqlObjectType type, bool isCreate, int nameTokenIndex, ScriptFile file, SqlObject linkObject) : this(name, type, isCreate, nameTokenIndex, file)
+        {
+            LinkObject = linkObject;
+        }
+
         public string Name { get; set; }
         public SqlObjectType Type { get; set; }
         public bool IsCreate { get; set; }
@@ -25,6 +30,7 @@ namespace ConsoliSQL.Models
         public ScriptFile File { get; set; }
         public bool Ignore { get; set; }
         public bool IsSystemObject { get; set; }
+        public SqlObject LinkObject { get; set; }
 
         private static bool IsTemporaryTable(string name) =>
             System.Text.RegularExpressions.Regex.IsMatch(name, "^##?");
@@ -35,7 +41,10 @@ namespace ConsoliSQL.Models
         Table,
         View,
         Index,
-        Function,
+        //Function,
+        ScalarFunction,
+        TableValuedFunction,
+        InlineTableValuedFunction,
         Procedure,
         Trigger
     }

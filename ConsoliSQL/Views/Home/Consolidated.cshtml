@@ -47,6 +47,25 @@ else
     </div>
 }
 
+@functions { 
+    private static string GetSqlObjectIconPath(ConsoliSQL.Models.SqlObject obj)
+    {
+        switch (obj.Type)
+        {
+            case ConsoliSQL.Models.SqlObjectType.Index: return "~/Content/Images/Index.png";
+            case ConsoliSQL.Models.SqlObjectType.InlineTableValuedFunction:
+            case ConsoliSQL.Models.SqlObjectType.TableValuedFunction: return "~/Content/Images/TableFunction.png";
+            case ConsoliSQL.Models.SqlObjectType.ScalarFunction: return "~/Content/Images/ScalarFunction.png";
+            case ConsoliSQL.Models.SqlObjectType.Table: return "~/Content/Images/Table.png";
+            case ConsoliSQL.Models.SqlObjectType.View: return "~/Content/Images/View.png";
+            case ConsoliSQL.Models.SqlObjectType.Trigger: return "~/Content/Images/Trigger.png";
+            case ConsoliSQL.Models.SqlObjectType.Procedure: return "~/Content/Images/Procedure.png";
+
+            default: return "";
+        }
+    }
+}
+
 @foreach (var scriptFile in Model.ScriptFiles)
 {
     <ul>
@@ -61,7 +80,7 @@ else
                 <ul>
                     @foreach (var createObject in scriptFile.Creates)
                     {
-                        <li>@createObject.Name</li>
+                        <li><img src="@Url.Content(GetSqlObjectIconPath(createObject))" alt="@createObject.Type.GetSqlObjectName()" data-toggle="tooltip" title="@createObject.Type.GetSqlObjectName()" /> @createObject.Name</li>
                     }
                 </ul>
             </li>
@@ -73,7 +92,7 @@ else
                 <ul>
                     @foreach (var dependsObject in scriptFile.DependsOn)
                     {
-                        <li>@dependsObject.Name</li>
+                        <li><img src="@Url.Content(GetSqlObjectIconPath(dependsObject))" alt="@dependsObject.Type.GetSqlObjectName()" data-toggle="tooltip" title="@dependsObject.Type.GetSqlObjectName()" /> @dependsObject.Name</li>
                     }
                 </ul>
             </li>

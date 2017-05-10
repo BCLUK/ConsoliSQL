@@ -128,6 +128,14 @@
     <Content Include="Content\global.min.css">
       <DependentUpon>global.css</DependentUpon>
     </Content>
+    <Content Include="Content\Images\Index.png" />
+    <Content Include="Content\Images\Key.png" />
+    <Content Include="Content\Images\Procedure.png" />
+    <Content Include="Content\Images\ScalarFunction.png" />
+    <Content Include="Content\Images\Table.png" />
+    <Content Include="Content\Images\TableFunction.png" />
+    <Content Include="Content\Images\Trigger.png" />
+    <Content Include="Content\Images\View.png" />
     <Content Include="fonts\glyphicons-halflings-regular.svg" />
     <Content Include="Global.asax" />
     <Content Include="fonts\glyphicons-halflings-regular.woff2" />

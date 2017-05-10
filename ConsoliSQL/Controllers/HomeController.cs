@@ -74,6 +74,25 @@ namespace ConsoliSQL.Controllers
                         var sqlStatement = new StringBuilder();
                         var indiciesToObjects = scriptFile.DependsOn.ToDictionary(x => x.NameTokenIndex, x => x);
 
+                        if (model.PrependDrops)
+                        {
+                            foreach (var createObj in scriptFile.Creates.Where(x => !x.Ignore && !x.IsSystemObject))
+                            {
+                                if (createObj.Type == SqlObjectType.Index)
+                                {
+                                    sqlStatement.AppendFormat("IF EXISTS(SELECT [index_id] FROM [sys].[indexes] WHERE [name] = '{1}' AND [object_id] = OBJECT_ID('{2}', 'U')){0}", Environment.NewLine, createObj.Name, createObj.LinkObject.Name);
+                                    sqlStatement.AppendFormat("DROP INDEX {1} ON {2}{0}", Environment.NewLine, createObj.Name, createObj.LinkObject.Name);
+                                    sqlStatement.AppendFormat("GO{0}{0}", Environment.NewLine);
+                                }
+                                else
+                                {
+                                    sqlStatement.AppendFormat("IF OBJECT_ID('{1}', '{2}') IS NOT NULL{0}", Environment.NewLine, createObj.Name, createObj.Type.GetSqlObjectType());
+                                    sqlStatement.AppendFormat("DROP {1} {2}{0}", Environment.NewLine, createObj.Type.GetSqlObjectKeyword(), createObj.Name);
+                                    sqlStatement.AppendFormat("GO{0}{0}", Environment.NewLine);
+                                }
+                            }
+                        }
+
                         for (int i = parseContent.FirstTokenIndex; i <= parseContent.LastTokenIndex; i++)
                         {
                             var token = parseContent.ScriptTokenStream[i];
@@ -172,8 +191,8 @@ namespace ConsoliSQL.Controllers
 
                 var filteredScriptFiles = scriptFiles.Select(x => 
                 {
-                    x.Creates = x.FilteredCreates();
-                    x.DependsOn = x.UniqueFilteredDependsOn(model.CaseSensitive);
+                    x.Creates = x.FilteredCreates().GroupBy(y => y.Type).Select(y => y.OrderBy(z => z.Name)).SelectMany(y => y);
+                    x.DependsOn = x.UniqueFilteredDependsOn(model.CaseSensitive).GroupBy(y => y.Type).Select(y => y.OrderBy(z => z.Name)).SelectMany(y => y);
                     return x;
                 });
 
