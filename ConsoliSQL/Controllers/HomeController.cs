@@ -43,7 +43,6 @@ namespace ConsoliSQL.Controllers
             if (ModelState.IsValid)
             {
                 var scriptFiles = new HashSet<ScriptFile>();
-                var sw = System.Diagnostics.Stopwatch.StartNew();
 
                 foreach (var file in model.Files)
                 {
@@ -72,8 +71,6 @@ namespace ConsoliSQL.Controllers
                         scriptFile.ParseErrors = parseErrors.Select(x => $"{x.Message} Line: {x.Line}");
 
                         var sqlStatement = new StringBuilder();
-                        var indiciesToObjects = scriptFile.DependsOn.ToDictionary(x => x.NameTokenIndex, x => x);
-
                         if (model.PrependDrops)
                         {
                             foreach (var createObj in scriptFile.Creates.Where(x => !x.Ignore && !x.IsSystemObject))
@@ -92,7 +89,8 @@ namespace ConsoliSQL.Controllers
                                 }
                             }
                         }
-
+                        
+                        var indiciesToObjects = scriptFile.Creates.Union(scriptFile.DependsOn).Distinct().ToDictionary(x => x.NameTokenIndex, x => x);
                         for (int i = parseContent.FirstTokenIndex; i <= parseContent.LastTokenIndex; i++)
                         {
                             var token = parseContent.ScriptTokenStream[i];
@@ -141,9 +139,6 @@ namespace ConsoliSQL.Controllers
                         scriptFiles.Add(scriptFile);
                     }
                 }
-
-                sw.Stop();
-                System.Diagnostics.Debug.WriteLine($"Took {sw.ElapsedMilliseconds}ms to parse");
                 
                 var dependencyGraph = new AdjacencyGraph<ScriptFile, SEdge<ScriptFile>>();
                 foreach (var scriptFile in scriptFiles)
