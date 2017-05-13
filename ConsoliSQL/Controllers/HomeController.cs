@@ -35,7 +35,7 @@ namespace ConsoliSQL.Controllers
         [HttpPost]
         public ActionResult Index(Home model)
         {
-            if (model.Files.Count() == 1 && model.Files.First() == null)
+            if (model.Files == null || (model.Files.Count() == 1 && model.Files.First() == null))
             {
                 ModelState.AddModelError("Files", ERROR_MESSAGE_FILES);
             }

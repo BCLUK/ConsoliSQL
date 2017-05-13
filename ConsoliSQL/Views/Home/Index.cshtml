@@ -9,8 +9,23 @@
 @using (Html.BeginForm("Index", "Home", FormMethod.Post, new { enctype = "multipart/form-data" }))
 {
     <div class="form-group">
-        @Html.TextBoxFor(x => x.Files, new { @class = "form-control", type = "file", multiple = "multiple", accept = ".sql" })
+        <div class="form-inline">
+            <div class="form-group">
+                <input id="files-input" type="file" class="hide" multiple accept=".sql" />
+                <input id="files-button" type="button" class="btn btn-default" value="+ Upload Files" />
+            </div>
+            <div class="form-group">
+                <input id="directory-input" type="file" class="hide" webkitdirectory directory mozdirectory />
+                <input id="directory-button" type="button" class="btn btn-default" value="+ Upload Directory" />
+            </div>
+        </div>
         @Html.ValidationMessageFor(x => x.Files, null, new { @class = "text-danger" })
+    </div>
+
+    <div class="form-group hide">
+        <div class="well">
+            <div class="row" id="files"></div>
+        </div>
     </div>
 
     <div class="checkbox">
@@ -40,6 +55,93 @@
 
     <input class="btn btn-default" type="submit" value="Consolidate" />
 }
+
+<script>
+    function isInputDirSupported() {
+        var tmpInput = document.createElement("input");
+        if ("webkitdirectory" in tmpInput
+            || "mozdirectory" in tmpInput
+            || "odirectory" in tmpInput
+            || "msdirectory" in tmpInput
+            || "directory" in tmpInput) return true;
+
+        return false;
+    }
+
+    if (!isInputDirSupported()) {
+        $(".form-inline > .form-group:has(#directory-input)").hide();
+    }
+
+    var selectedFiles = [];
+
+    $("#files-button").click(function () {
+        $("#files-input").click();
+    });
+
+    $("#directory-button").click(function () {
+        $("#directory-input").click();
+    });
+
+    var removeFile = function () {
+        selectedFiles.splice(selectedFiles.indexOf($(this).data("file")), 1);
+        updateFiles();
+    };
+
+    var updateFiles = function () {
+        $("#files").empty();
+
+        for (var i = 0; i < selectedFiles.length; i++) {
+            $("#files").append($("<div>")
+                .addClass("col-md-3")
+                .append($("<div>")
+                    .addClass("file-delete")
+                    .append($("<span>")
+                        .addClass("close")
+                        .html("&times;")
+                        .data("file", selectedFiles[i])
+                        .click(removeFile)))
+                .append($("<div>")
+                    .addClass("file-name")
+                    .prop("title", selectedFiles[i].name)
+                    .html(selectedFiles[i].name)));
+        }
+
+        $(".form-group:has(#files)").toggleClass("hide", selectedFiles.length < 1);
+    };
+
+    $("#files-input, #directory-input").change(function () {
+        var files = $(this).prop("files");
+
+        for (var i = 0; i < files.length; i++) {
+            if (/.sql$/.test(files[i].name.toLowerCase())) {
+                selectedFiles.push(files[i]);
+            }
+        }
+
+        updateFiles();
+    });
+
+    $("form").submit(function () {
+        var formData = new FormData($(this).serialize());
+
+        for (var i = 0; i < selectedFiles.length; i++) {
+            formData.append("Files", selectedFiles[i]);
+        }
+
+        $.ajax({
+            url: "@Url.Action("Index")",
+            type: "POST",
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function (data) {
+                document.write(data);
+            }
+        });
+        
+        return false;
+    });
+</script>
 
 <hr />
 
