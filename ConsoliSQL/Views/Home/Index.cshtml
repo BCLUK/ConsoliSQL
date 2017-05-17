@@ -122,7 +122,7 @@
     });
 
     $("form").submit(function () {
-        var formData = new FormData($(this).serialize());
+        var formData = new FormData(this);
 
         for (var i = 0; i < selectedFiles.length; i++) {
             formData.append("Files", selectedFiles[i]);

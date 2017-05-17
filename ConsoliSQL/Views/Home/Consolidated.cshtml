@@ -10,7 +10,9 @@
 <script>
     var svg = $(Viz("@Html.Raw(HttpUtility.JavaScriptStringEncode(Model.DotNotation))", { format: "svg" })).addClass("dot-svg");
     $(".body-content").append(svg);
-    svgPanZoom(".dot-svg", { controlIconsEnabled: true });
+    svgPanZoom(".dot-svg", {
+        controlIconsEnabled: true
+    });
 
     function GetDateTime() {
         var isoDate = new Date().toISOString();
@@ -99,6 +101,8 @@ else
         }
     </ul>
 }
+
+<textarea id="order-output" class="form-control order-output" spellcheck="false">@(string.Join(Environment.NewLine, Model.ScriptFiles.Select(x => x.FileName)))</textarea>
 
 <script>
     $("[data-toggle='tooltip']").tooltip();

@@ -89,15 +89,15 @@ namespace ConsoliSQL.Controllers
                                 }
                             }
                         }
-                        
-                        var indiciesToObjects = scriptFile.Creates.Union(scriptFile.DependsOn).Distinct().ToDictionary(x => x.NameTokenIndex, x => x);
+
+                        var indiciesToObjects = scriptFile.Creates.Union(scriptFile.DependsOn).GroupBy(x => x.NameTokenIndex).Select(x => x.First()).ToDictionary(x => x.NameTokenIndex, x => x);
                         for (int i = parseContent.FirstTokenIndex; i <= parseContent.LastTokenIndex; i++)
                         {
                             var token = parseContent.ScriptTokenStream[i];
                             if (token.Text != null)
                             {
                                 sqlStatement.Append(token.Text);
-                                
+
                                 if (indiciesToObjects.ContainsKey(i))
                                 {
                                     var span = html.CreateElement("mark");
@@ -115,7 +115,7 @@ namespace ConsoliSQL.Controllers
                                     }
 
                                     span.InnerHtml = token.Text;
-                                    
+
                                     html.DocumentNode.AppendChild(span);
                                 }
                                 else
@@ -184,7 +184,7 @@ namespace ConsoliSQL.Controllers
                     output = output.Replace(WINDOWS_LINE_ENDING, UNIX_LINE_ENDING).Replace(UNIX_LINE_ENDING, WINDOWS_LINE_ENDING);
                 }
 
-                var filteredScriptFiles = scriptFiles.Select(x => 
+                var filteredScriptFiles = orderedScripts.Select(x => 
                 {
                     x.Creates = x.FilteredCreates().GroupBy(y => y.Type).Select(y => y.OrderBy(z => z.Name)).SelectMany(y => y);
                     x.DependsOn = x.UniqueFilteredDependsOn(model.CaseSensitive).GroupBy(y => y.Type).Select(y => y.OrderBy(z => z.Name)).SelectMany(y => y);

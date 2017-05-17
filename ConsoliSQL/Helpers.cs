@@ -144,11 +144,12 @@ namespace ConsoliSQL
             }
             else if (objType == typeof(AlterTableTriggerModificationStatement))
             {
-                sqlObjects.Add(new SqlObject(((AlterTableTriggerModificationStatement)obj).SchemaObjectName.BaseIdentifier.Value, SqlObjectType.Table, false, ((AlterTableTriggerModificationStatement)obj).SchemaObjectName.BaseIdentifier.FirstTokenIndex, scriptFile));
+                var triggerTable = new SqlObject(((AlterTableTriggerModificationStatement)obj).SchemaObjectName.BaseIdentifier.Value, SqlObjectType.Table, false, ((AlterTableTriggerModificationStatement)obj).SchemaObjectName.BaseIdentifier.FirstTokenIndex, scriptFile);
+                sqlObjects.Add(triggerTable);
 
                 foreach (var trigger in ((AlterTableTriggerModificationStatement)obj).TriggerNames)
                 {
-                    sqlObjects.Add(new SqlObject(trigger.Value, SqlObjectType.Trigger, false, trigger.FirstTokenIndex, scriptFile));
+                    sqlObjects.Add(new SqlObject(trigger.Value, SqlObjectType.Trigger, false, trigger.FirstTokenIndex, scriptFile, triggerTable));
                 }
             }
             else if (objType == typeof(CreateFunctionStatement))
@@ -166,7 +167,9 @@ namespace ConsoliSQL
             }
             else if (objType == typeof(CreateTriggerStatement))
             {
-                sqlObjects.Add(new SqlObject(((CreateTriggerStatement)obj).Name.BaseIdentifier.Value, SqlObjectType.Trigger, true, ((CreateTriggerStatement)obj).Name.BaseIdentifier.FirstTokenIndex, scriptFile));
+                var onTable = new SqlObject(((CreateTriggerStatement)obj).TriggerObject.Name.BaseIdentifier.Value, SqlObjectType.Table, false, ((CreateTriggerStatement)obj).TriggerObject.Name.BaseIdentifier.FirstTokenIndex, scriptFile);
+                sqlObjects.Add(onTable);
+                sqlObjects.Add(new SqlObject(((CreateTriggerStatement)obj).Name.BaseIdentifier.Value, SqlObjectType.Trigger, true, ((CreateTriggerStatement)obj).Name.BaseIdentifier.FirstTokenIndex, scriptFile, onTable)); // Added table as link object but not needed to drop trigger
             }
             else if (objType == typeof(CreateIndexStatement))
             {
