@@ -23,6 +23,7 @@ namespace ConsoliSQL.Controllers
         }
 
         const string BEGIN_TRAN = "BEGIN TRAN";
+        const string XACT_ABORT = "SET XACT_ABORT ON";
         const string END_TRAN = "ROLLBACK";
 
         const string BATCH_SEPERATOR = "GO";
@@ -77,7 +78,8 @@ namespace ConsoliSQL.Controllers
                             {
                                 if (createObj.Type == SqlObjectType.Index)
                                 {
-                                    sqlStatement.AppendFormat("IF EXISTS(SELECT [index_id] FROM [sys].[indexes] WHERE [name] = '{1}' AND [object_id] = OBJECT_ID('{2}', 'U')){0}", Environment.NewLine, createObj.Name, createObj.LinkObject.Name);
+                                    //sqlStatement.AppendFormat("IF EXISTS(SELECT [index_id] FROM [sys].[indexes] WHERE [name] = '{1}' AND [object_id] = OBJECT_ID('{2}', 'U')){0}", Environment.NewLine, createObj.Name, createObj.LinkObject.Name);
+                                    sqlStatement.AppendFormat("IF INDEXPROPERTY(OBJECT_ID('{1}'), '{2}', 'IndexID') IS NOT NULL", Environment.NewLine, createObj.Name, createObj.LinkObject.Name);
                                     sqlStatement.AppendFormat("DROP INDEX {1} ON {2}{0}", Environment.NewLine, createObj.Name, createObj.LinkObject.Name);
                                     sqlStatement.AppendFormat("GO{0}{0}", Environment.NewLine);
                                 }
@@ -113,7 +115,7 @@ namespace ConsoliSQL.Controllers
                                     {
                                         span.SetAttributeValue("style", "background-color: #FFF176;");
                                     }
-
+                                    
                                     span.InnerHtml = token.Text;
 
                                     html.DocumentNode.AppendChild(span);
@@ -150,7 +152,7 @@ namespace ConsoliSQL.Controllers
                 {
                     foreach (var depObj in scriptFile.FilteredDependsOn())
                     {
-                        var createObj = scriptFiles.SelectMany(x => x.Creates.Where(y => y.IsCreate && !y.Ignore && y.Type == depObj.Type && y.Name.Equals(depObj.Name, model.CaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase))).FirstOrDefault();
+                        var createObj = scriptFiles.SelectMany(x => x.Creates.Where(y => y.IsCreate && !y.Ignore && y.Type.IsEqualTo(depObj.Type) && y.Name.Equals(depObj.Name, model.CaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase))).FirstOrDefault();
 
                         if (createObj != null && !dependencyGraph.ContainsEdge(createObj.File, scriptFile) && !createObj.File.Equals(scriptFile))
                         {
@@ -165,6 +167,9 @@ namespace ConsoliSQL.Controllers
 
                 if (model.WrapTransaction)
                 {
+                    script.AppendLine(XACT_ABORT);
+                    script.AppendLine(BATCH_SEPERATOR);
+                    script.AppendLine(Environment.NewLine);
                     script.AppendLine(BEGIN_TRAN);
                 }
 
@@ -193,7 +198,6 @@ namespace ConsoliSQL.Controllers
 
                 /*
                  * Display warning if multiple scripts are creating duplicate object (name==name && type==type)
-                 * Add code for Prepend IF EXISTS DROP
                  * Improve parse time
                  * Add pop out graph
                 */

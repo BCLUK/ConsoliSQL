@@ -40,6 +40,7 @@ namespace ConsoliSQL.Models
     {
         Table,
         View,
+        TableOrView,
         Index,
         //Function,
         ScalarFunction,

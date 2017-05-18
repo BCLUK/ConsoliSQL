@@ -55,7 +55,8 @@ namespace ConsoliSQL
             }
             else if (objType == typeof(NamedTableReference))
             {
-                sqlObjects.Add(new SqlObject(((NamedTableReference)obj).SchemaObject.BaseIdentifier.Value, SqlObjectType.Table, false, ((NamedTableReference)obj).SchemaObject.BaseIdentifier.FirstTokenIndex, scriptFile));
+                // Gets tables and views
+                sqlObjects.Add(new SqlObject(((NamedTableReference)obj).SchemaObject.BaseIdentifier.Value, SqlObjectType.TableOrView, false, ((NamedTableReference)obj).SchemaObject.BaseIdentifier.FirstTokenIndex, scriptFile));
             }
             else if (objType == typeof(TriggerObject))
             {
@@ -192,6 +193,7 @@ namespace ConsoliSQL
         
         public static string GetSqlObjectType(this SqlObjectType type)
         {
+            // Used for scripting drops, so only used by create objects, which have correct type anyway
             switch (type)
             {
                 case SqlObjectType.Table: return "U";
@@ -209,6 +211,7 @@ namespace ConsoliSQL
 
         public static string GetSqlObjectKeyword(this SqlObjectType type)
         {
+            // Used for scripting drops, so only used by create objects, which have correct type anyway
             switch (type)
             {
                 case SqlObjectType.Table: return "TABLE";
@@ -230,6 +233,7 @@ namespace ConsoliSQL
             {
                 case SqlObjectType.Table: return "Table";
                 case SqlObjectType.View: return "View";
+                case SqlObjectType.TableOrView: return "Table or View";
                 case SqlObjectType.Index: return "Index";
                 case SqlObjectType.ScalarFunction: return "Scalar Function";
                 case SqlObjectType.TableValuedFunction:
@@ -238,6 +242,19 @@ namespace ConsoliSQL
                 case SqlObjectType.Trigger: return "Trigger";
 
                 default: return "";
+            }
+        }
+
+        public static bool IsEqualTo(this SqlObjectType type1, SqlObjectType type2)
+        {
+            switch (type1)
+            {
+                case SqlObjectType.Table:
+                case SqlObjectType.View:
+                    return new[] { SqlObjectType.Table, SqlObjectType.View, SqlObjectType.TableOrView }.Contains(type2);
+
+                default:
+                    return type1.Equals(type2);
             }
         }
     }

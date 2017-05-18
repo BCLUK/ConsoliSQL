@@ -134,6 +134,7 @@
     <Content Include="Content\Images\ScalarFunction.png" />
     <Content Include="Content\Images\Table.png" />
     <Content Include="Content\Images\TableFunction.png" />
+    <Content Include="Content\Images\TableOrView.gif" />
     <Content Include="Content\Images\Trigger.png" />
     <Content Include="Content\Images\View.png" />
     <Content Include="fonts\glyphicons-halflings-regular.svg" />

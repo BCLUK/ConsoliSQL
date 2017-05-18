@@ -10,8 +10,10 @@
 <script>
     var svg = $(Viz("@Html.Raw(HttpUtility.JavaScriptStringEncode(Model.DotNotation))", { format: "svg" })).addClass("dot-svg");
     $(".body-content").append(svg);
+
     svgPanZoom(".dot-svg", {
-        controlIconsEnabled: true
+        controlIconsEnabled: true,
+        maxZoom: 10000
     });
 
     function GetDateTime() {
@@ -50,19 +52,20 @@ else
 }
 
 @functions { 
-    private static string GetSqlObjectIconPath(ConsoliSQL.Models.SqlObject obj)
+    private static string GetSqlObjectIconPath(ConsoliSQL.Models.SqlObjectType type)
     {
-        switch (obj.Type)
+        switch (type)
         {
-            case ConsoliSQL.Models.SqlObjectType.Index: return "~/Content/Images/Index.png";
-            case ConsoliSQL.Models.SqlObjectType.InlineTableValuedFunction:
-            case ConsoliSQL.Models.SqlObjectType.TableValuedFunction: return "~/Content/Images/TableFunction.png";
-            case ConsoliSQL.Models.SqlObjectType.ScalarFunction: return "~/Content/Images/ScalarFunction.png";
             case ConsoliSQL.Models.SqlObjectType.Table: return "~/Content/Images/Table.png";
             case ConsoliSQL.Models.SqlObjectType.View: return "~/Content/Images/View.png";
-            case ConsoliSQL.Models.SqlObjectType.Trigger: return "~/Content/Images/Trigger.png";
+            case ConsoliSQL.Models.SqlObjectType.TableOrView: return "~/Content/Images/TableOrView.gif";
+            case ConsoliSQL.Models.SqlObjectType.Index: return "~/Content/Images/Index.png";
+            case ConsoliSQL.Models.SqlObjectType.ScalarFunction: return "~/Content/Images/ScalarFunction.png";
+            case ConsoliSQL.Models.SqlObjectType.TableValuedFunction: return "~/Content/Images/TableFunction.png";
+            case ConsoliSQL.Models.SqlObjectType.InlineTableValuedFunction:
             case ConsoliSQL.Models.SqlObjectType.Procedure: return "~/Content/Images/Procedure.png";
-
+            case ConsoliSQL.Models.SqlObjectType.Trigger: return "~/Content/Images/Trigger.png";
+                
             default: return "";
         }
     }
@@ -72,8 +75,8 @@ else
 {
     <ul>
         <li data-overview="@scriptFile.Overview">
-            <b class="@(scriptFile.ParseErrors.Count() > 0 ? "text-danger" : "")">@scriptFile.FileName <span class="@(scriptFile.ParseErrors.Count() > 0 ? "glyphicon glyphicon-exclamation-sign" : "")" data-toggle="tooltip" title="@string.Join(Environment.NewLine, scriptFile.ParseErrors)"></span></b>
-            <span class="glyphicon glyphicon-search" role="button"></span>
+            <b class="@(scriptFile.ParseErrors.Count() > 0 ? "text-danger" : "")">@scriptFile.FileName<span class="@(scriptFile.ParseErrors.Count() > 0 ? "glyphicon glyphicon-exclamation-sign" : "")" data-toggle="tooltip" title="@string.Join(Environment.NewLine, scriptFile.ParseErrors)"></span></b>
+            <span class="glyphicon glyphicon-search pull-right" role="button"></span>
         </li>
         @if (scriptFile.Creates.Count() > 0)
         {
@@ -82,7 +85,8 @@ else
                 <ul>
                     @foreach (var createObject in scriptFile.Creates)
                     {
-                        <li><img src="@Url.Content(GetSqlObjectIconPath(createObject))" alt="@createObject.Type.GetSqlObjectName()" data-toggle="tooltip" title="@createObject.Type.GetSqlObjectName()" /> @createObject.Name</li>
+                        var createObjectName = createObject.Type.GetSqlObjectName();
+                        <li><img src="@Url.Content(GetSqlObjectIconPath(createObject.Type))" alt="@createObjectName" data-toggle="tooltip" title="@createObjectName" /> @createObject.Name</li>
                     }
                 </ul>
             </li>
@@ -94,7 +98,8 @@ else
                 <ul>
                     @foreach (var dependsObject in scriptFile.DependsOn)
                     {
-                        <li><img src="@Url.Content(GetSqlObjectIconPath(dependsObject))" alt="@dependsObject.Type.GetSqlObjectName()" data-toggle="tooltip" title="@dependsObject.Type.GetSqlObjectName()" /> @dependsObject.Name</li>
+                        var dependsObjectName = dependsObject.Type.GetSqlObjectName();
+                        <li><img src="@Url.Content(GetSqlObjectIconPath(dependsObject.Type))" alt="@dependsObjectName" data-toggle="tooltip" title="@dependsObjectName" /> @dependsObject.Name</li>
                     }
                 </ul>
             </li>
@@ -106,7 +111,7 @@ else
 
 <script>
     $("[data-toggle='tooltip']").tooltip();
-    
+
     $("ul > li > .glyphicon-search").click(function () {
         var newWindow = window.open();
         newWindow.document.write($("<pre>").append($(this).parent().data("overview"))[0].outerHTML);
