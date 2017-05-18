@@ -4,6 +4,8 @@
     ViewBag.Title = "Home";
 }
 
+<h2>@ViewBag.Title</h2>
+<hr />
 <h5>Upload SQL scripts and let the tool do the rest of the work...</h5>
 
 @using (Html.BeginForm("Index", "Home", FormMethod.Post, new { enctype = "multipart/form-data" }))
@@ -56,93 +58,6 @@
     <input class="btn btn-default" type="submit" value="Consolidate" />
 }
 
-<script>
-    function isInputDirSupported() {
-        var tmpInput = document.createElement("input");
-        if ("webkitdirectory" in tmpInput
-            || "mozdirectory" in tmpInput
-            || "odirectory" in tmpInput
-            || "msdirectory" in tmpInput
-            || "directory" in tmpInput) return true;
-
-        return false;
-    }
-
-    if (!isInputDirSupported()) {
-        $(".form-inline > .form-group:has(#directory-input)").hide();
-    }
-
-    var selectedFiles = [];
-
-    $("#files-button").click(function () {
-        $("#files-input").click();
-    });
-
-    $("#directory-button").click(function () {
-        $("#directory-input").click();
-    });
-
-    var removeFile = function () {
-        selectedFiles.splice(selectedFiles.indexOf($(this).data("file")), 1);
-        updateFiles();
-    };
-
-    var updateFiles = function () {
-        $("#files").empty();
-
-        for (var i = 0; i < selectedFiles.length; i++) {
-            $("#files").append($("<div>")
-                .addClass("col-md-3")
-                .append($("<div>")
-                    .addClass("file-delete")
-                    .append($("<span>")
-                        .addClass("close")
-                        .html("&times;")
-                        .data("file", selectedFiles[i])
-                        .click(removeFile)))
-                .append($("<div>")
-                    .addClass("file-name")
-                    .prop("title", selectedFiles[i].name)
-                    .html(selectedFiles[i].name)));
-        }
-
-        $(".form-group:has(#files)").toggleClass("hide", selectedFiles.length < 1);
-    };
-
-    $("#files-input, #directory-input").change(function () {
-        var files = $(this).prop("files");
-
-        for (var i = 0; i < files.length; i++) {
-            if (/.sql$/.test(files[i].name.toLowerCase())) {
-                selectedFiles.push(files[i]);
-            }
-        }
-
-        updateFiles();
-    });
-
-    $("form").submit(function () {
-        var formData = new FormData(this);
-
-        for (var i = 0; i < selectedFiles.length; i++) {
-            formData.append("Files", selectedFiles[i]);
-        }
-
-        $.ajax({
-            url: "@Url.Action("Index")",
-            type: "POST",
-            data: formData,
-            processData: false,
-            contentType: false,
-            success: function (data) {
-                document.write(data);
-            }
-        });
-        
-        return false;
-    });
-</script>
-
 <hr />
 
 <p>Known issues...</p>
@@ -158,6 +73,136 @@
     </li>
 </ul>
 
-<script>
-    $("[data-toggle='tooltip']").tooltip();
-</script>
+@section scripts {
+    <script src="~/Scripts/jquery.signalR-2.2.2.min.js"></script>
+    <script src="~/signalr/hubs"></script>
+
+    <script>
+        function isInputDirSupported() {
+            var tmpInput = document.createElement("input");
+            if ("webkitdirectory" in tmpInput
+                || "mozdirectory" in tmpInput
+                || "odirectory" in tmpInput
+                || "msdirectory" in tmpInput
+                || "directory" in tmpInput) return true;
+
+            return false;
+        }
+
+        if (!isInputDirSupported()) {
+            $(".form-inline > .form-group:has(#directory-input)").hide();
+        }
+
+        var selectedFiles = [];
+
+        $("#files-button").click(function () {
+            $("#files-input").click();
+        });
+
+        $("#directory-button").click(function () {
+            $("#directory-input").click();
+        });
+
+        var removeFile = function () {
+            selectedFiles.splice(selectedFiles.indexOf($(this).data("file")), 1);
+            updateFiles();
+        };
+
+        var updateFiles = function () {
+            $("#files").empty();
+
+            for (var i = 0; i < selectedFiles.length; i++) {
+                $("#files").append($("<div>")
+                    .addClass("col-md-3")
+                    .append($("<div>")
+                        .addClass("file-delete")
+                        .append($("<span>")
+                            .addClass("close")
+                            .html("&times;")
+                            .data("file", selectedFiles[i])
+                            .click(removeFile)))
+                    .append($("<div>")
+                        .addClass("file-name")
+                        .prop("title", selectedFiles[i].name)
+                        .html(selectedFiles[i].name)));
+            }
+
+            $(".form-group:has(#files)").toggleClass("hide", selectedFiles.length < 1);
+        };
+
+        $("#files-input, #directory-input").change(function () {
+            var files = $(this).prop("files");
+
+            for (var i = 0; i < files.length; i++) {
+                if (/.sql$/.test(files[i].name.toLowerCase())) {
+                    selectedFiles.push(files[i]);
+                }
+            }
+
+            updateFiles();
+        });
+
+        $("form").submit(function () {
+            var formData = new FormData(this);
+
+            for (var i = 0; i < selectedFiles.length; i++) {
+                formData.append("Files", selectedFiles[i]);
+            }
+
+            var modal = $("<div>")
+                .addClass("modal fade")
+                .append($("<div>")
+                    .addClass("modal-dialog")
+                    .append($("<div>")
+                        .addClass("modal-content")
+                        .append($("<div>")
+                            .addClass("modal-body")
+                            .append($("<h1>")
+                                .addClass("text-center")
+                                .html("Consolidating"))
+                            .append($("<hr>"))
+                            .append($("<p>")
+                                .addClass("text-center file-name"))
+                            .append($("<div>")
+                                .addClass("progress consolidate-progress")
+                                .append($("<div>")
+                                    .addClass("progress-bar progress-bar-striped active"))))))
+                .on("hidden.bs.modal", function () {
+                    $(this).remove();
+                });
+
+            $.ajax({
+                url: "@Url.Action("Index")",
+                type: "POST",
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function (data) {
+                    $(".body-content").html(data);
+                    modal.modal("hide");
+                }
+            });
+
+            modal.modal({
+                backdrop: "static",
+                keyboard: false
+            });
+
+            var chat = $.connection.consolidateProgressHub;
+
+            chat.client.reportProgress = function (scriptFile, labelPercent, percent) {
+                var pBar = modal.find(".progress-bar")
+                    .css("width", percent + "%")
+                    .html(labelPercent + "%");
+
+                modal.find(".file-name").html(scriptFile);
+            };
+
+            $.connection.hub.start();
+
+            return false;
+        });
+
+        $("[data-toggle='tooltip']").tooltip();
+    </script>
+}

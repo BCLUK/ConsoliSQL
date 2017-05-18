@@ -4,37 +4,13 @@
     ViewBag.Title = "Consolidated";
 }
 
-<script src="~/Scripts/viz.js"></script>
-<script src="~/Scripts/svg-pan-zoom.js"></script>
+<h2>@ViewBag.Title</h2>
+<hr />
 
-<script>
-    var svg = $(Viz("@Html.Raw(HttpUtility.JavaScriptStringEncode(Model.DotNotation))", { format: "svg" })).addClass("dot-svg");
-    $(".body-content").append(svg);
-
-    svgPanZoom(".dot-svg", {
-        controlIconsEnabled: true,
-        maxZoom: 10000
-    });
-
-    function GetDateTime() {
-        var isoDate = new Date().toISOString();
-        var date = isoDate.slice(0, 10);
-        var time = isoDate.slice(11, 19);
-
-        return date + " " + time;
-    }
-
-    var urlObject = window.URL.createObjectURL(new Blob(["@Html.Raw(HttpUtility.JavaScriptStringEncode(Model.Script))"], { type: "text/plain" }));
-
-    $(".body-content").append(
-        $("<h4>").addClass("text-right").append(
-            $("<a>").html("Download ready ")
-                .attr("id", "sql-download-link")
-                .attr("href", urlObject)
-                .attr("download", "EasySQL " + GetDateTime() + ".sql")
-                .append($("<span>")
-                    .addClass("glyphicon glyphicon-download"))));
-</script>
+<div class="dot-container"></div>
+<h4 class="text-right">
+    <a id="sql-download-link" href="#">Download ready <span class="glyphicon glyphicon-download"></span></a>
+</h4>
 
 <hr />
 
@@ -71,45 +47,85 @@ else
     }
 }
 
-@foreach (var scriptFile in Model.ScriptFiles)
-{
-    <ul>
-        <li data-overview="@scriptFile.Overview">
-            <b class="@(scriptFile.ParseErrors.Count() > 0 ? "text-danger" : "")">@scriptFile.FileName<span class="@(scriptFile.ParseErrors.Count() > 0 ? "glyphicon glyphicon-exclamation-sign" : "")" data-toggle="tooltip" title="@string.Join(Environment.NewLine, scriptFile.ParseErrors)"></span></b>
-            <span class="glyphicon glyphicon-search pull-right" role="button"></span>
-        </li>
-        @if (scriptFile.Creates.Count() > 0)
-        {
-            <li>
-                <i>Creates</i>
-                <ul>
-                    @foreach (var createObject in scriptFile.Creates)
+<div class="panel-group">
+    <div class="panel panel-default">
+        <div class="panel-heading" data-toggle="collapse" data-target="#dependency-summary" role="button">Dependency Summary</div>
+        <div class="panel-collapse collapse" id="dependency-summary">
+            <div class="panel-body">
+                @foreach (var scriptFile in Model.ScriptFiles)
+                {
+                    <ul>
+                        <li data-overview="@scriptFile.Overview">
+                            <b class="@(scriptFile.ParseErrors.Count() > 0 ? "text-danger" : "")">@scriptFile.FileName<span class="@(scriptFile.ParseErrors.Count() > 0 ? "glyphicon glyphicon-exclamation-sign" : "")" data-toggle="tooltip" title="@string.Join(Environment.NewLine, scriptFile.ParseErrors)"></span></b>
+                            <span class="glyphicon glyphicon-search pull-right" role="button"></span>
+                        </li>
+                        @if (scriptFile.Creates.Count() > 0)
+                        {
+                            <li>
+                                <i>Creates</i>
+                                <ul>
+                                    @foreach (var createObject in scriptFile.Creates)
                     {
                         var createObjectName = createObject.Type.GetSqlObjectName();
-                        <li><img src="@Url.Content(GetSqlObjectIconPath(createObject.Type))" alt="@createObjectName" data-toggle="tooltip" title="@createObjectName" /> @createObject.Name</li>
-                    }
-                </ul>
-            </li>
-        }
-        @if (scriptFile.DependsOn.Count() > 0)
-        {
-            <li>
-                <i>Depends On</i>
-                <ul>
-                    @foreach (var dependsObject in scriptFile.DependsOn)
+                                        <li><img src="@Url.Content(GetSqlObjectIconPath(createObject.Type))" alt="@createObjectName" data-toggle="tooltip" title="@createObjectName" /> @createObject.Name</li>
+                                    }
+                                </ul>
+                            </li>
+                        }
+                        @if (scriptFile.DependsOn.Count() > 0)
+                        {
+                            <li>
+                                <i>Depends On</i>
+                                <ul>
+                                    @foreach (var dependsObject in scriptFile.DependsOn)
                     {
                         var dependsObjectName = dependsObject.Type.GetSqlObjectName();
-                        <li><img src="@Url.Content(GetSqlObjectIconPath(dependsObject.Type))" alt="@dependsObjectName" data-toggle="tooltip" title="@dependsObjectName" /> @dependsObject.Name</li>
-                    }
-                </ul>
-            </li>
-        }
-    </ul>
-}
+                                        <li><img src="@Url.Content(GetSqlObjectIconPath(dependsObject.Type))" alt="@dependsObjectName" data-toggle="tooltip" title="@dependsObjectName" /> @dependsObject.Name</li>
+                                    }
+                                </ul>
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="panel panel-default">
+        <div class="panel-heading" data-toggle="collapse" data-target="#scripts-order" role="button">Scripts Order</div>
+        <div class="panel-collapse collapse" id="scripts-order">
+            <div class="panel-body">
+                <textarea id="order-output" class="form-control order-output" spellcheck="false">@(string.Join(Environment.NewLine, Model.ScriptFiles.Select(x => x.FileName)))</textarea>
+            </div>
+        </div>
+    </div>
+</div>
 
-<textarea id="order-output" class="form-control order-output" spellcheck="false">@(string.Join(Environment.NewLine, Model.ScriptFiles.Select(x => x.FileName)))</textarea>
+<script src="~/Scripts/viz.js"></script>
+<script src="~/Scripts/svg-pan-zoom.js"></script>
 
 <script>
+    var svg = $(Viz("@Html.Raw(HttpUtility.JavaScriptStringEncode(Model.DotNotation))", { format: "svg" })).addClass("dot-svg");
+    $(".dot-container").append(svg);
+
+    svgPanZoom(".dot-svg", {
+        controlIconsEnabled: true,
+        maxZoom: 1000
+    });
+
+    function GetDateTime() {
+        var isoDate = new Date().toISOString();
+        var date = isoDate.slice(0, 10);
+        var time = isoDate.slice(11, 19);
+
+        return date + " " + time;
+    }
+
+    var urlObject = window.URL.createObjectURL(new Blob(["@Html.Raw(HttpUtility.JavaScriptStringEncode(Model.Script))"], { type: "text/plain" }));
+
+    $("#sql-download-link")
+        .attr("href", urlObject)
+        .attr("download", "EasySQL " + GetDateTime() + ".sql");
+
     $("[data-toggle='tooltip']").tooltip();
 
     $("ul > li > .glyphicon-search").click(function () {

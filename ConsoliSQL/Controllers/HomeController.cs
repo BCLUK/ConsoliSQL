@@ -1,5 +1,6 @@
 ﻿using ConsoliSQL.Models;
 using HtmlAgilityPack;
+using Microsoft.AspNet.SignalR;
 using Microsoft.SqlServer.TransactSql.ScriptDom;
 using QuickGraph;
 using QuickGraph.Algorithms;
@@ -44,9 +45,13 @@ namespace ConsoliSQL.Controllers
             if (ModelState.IsValid)
             {
                 var scriptFiles = new HashSet<ScriptFile>();
+                var count = 0;
+                var filesCount = model.Files.Count();
 
                 foreach (var file in model.Files)
                 {
+                    Hubs.ConsolidateProgressHub.ReportProgress(Path.GetFileName(file.FileName), (double)++count / filesCount * 100);
+
                     var sqlObjects = new HashSet<SqlObject>();
                     var scriptFile = new ScriptFile();
                     var html = new HtmlDocument();
@@ -201,8 +206,8 @@ namespace ConsoliSQL.Controllers
                  * Improve parse time
                  * Add pop out graph
                 */
-
-                return View("Consolidated", new Consolidated { Script = output, DotNotation = dot, ScriptFiles = filteredScriptFiles });
+                
+                return PartialView("Consolidated", new Consolidated { Script = output, DotNotation = dot, ScriptFiles = filteredScriptFiles });
             }
 
             return View();
