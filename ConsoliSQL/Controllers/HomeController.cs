@@ -50,7 +50,7 @@ namespace ConsoliSQL.Controllers
 
                 foreach (var file in model.Files)
                 {
-                    Hubs.ConsolidateProgressHub.ReportProgress(Path.GetFileName(file.FileName), (double)++count / filesCount * 100);
+                    Hubs.ConsolidateProgressHub.ReportProgress(User.Identity.Name, Path.GetFileName(file.FileName), (double)++count / filesCount * 100);
 
                     var sqlObjects = new HashSet<SqlObject>();
                     var scriptFile = new ScriptFile();
@@ -84,7 +84,7 @@ namespace ConsoliSQL.Controllers
                                 if (createObj.Type == SqlObjectType.Index)
                                 {
                                     //sqlStatement.AppendFormat("IF EXISTS(SELECT [index_id] FROM [sys].[indexes] WHERE [name] = '{1}' AND [object_id] = OBJECT_ID('{2}', 'U')){0}", Environment.NewLine, createObj.Name, createObj.LinkObject.Name);
-                                    sqlStatement.AppendFormat("IF INDEXPROPERTY(OBJECT_ID('{1}'), '{2}', 'IndexID') IS NOT NULL", Environment.NewLine, createObj.Name, createObj.LinkObject.Name);
+                                    sqlStatement.AppendFormat("IF INDEXPROPERTY(OBJECT_ID('{1}'), '{2}', 'IndexID') IS NOT NULL{0}", Environment.NewLine, createObj.Name, createObj.LinkObject.Name);
                                     sqlStatement.AppendFormat("DROP INDEX {1} ON {2}{0}", Environment.NewLine, createObj.Name, createObj.LinkObject.Name);
                                     sqlStatement.AppendFormat("GO{0}{0}", Environment.NewLine);
                                 }
@@ -174,12 +174,14 @@ namespace ConsoliSQL.Controllers
                 {
                     script.AppendLine(XACT_ABORT);
                     script.AppendLine(BATCH_SEPERATOR);
-                    script.AppendLine(Environment.NewLine);
+                    script.AppendLine();
                     script.AppendLine(BEGIN_TRAN);
+                    script.AppendLine();
                 }
 
                 foreach (var scriptFile in orderedScripts)
                 {
+                    script.AppendFormat("-- {1}{0}", Environment.NewLine, scriptFile.FileName);
                     script.AppendLine(scriptFile.Content);
                 }
 

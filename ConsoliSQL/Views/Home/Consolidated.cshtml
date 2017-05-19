@@ -27,7 +27,7 @@ else
     </div>
 }
 
-@functions { 
+@functions {
     private static string GetSqlObjectIconPath(ConsoliSQL.Models.SqlObjectType type)
     {
         switch (type)
@@ -41,7 +41,7 @@ else
             case ConsoliSQL.Models.SqlObjectType.InlineTableValuedFunction:
             case ConsoliSQL.Models.SqlObjectType.Procedure: return "~/Content/Images/Procedure.png";
             case ConsoliSQL.Models.SqlObjectType.Trigger: return "~/Content/Images/Trigger.png";
-                
+
             default: return "";
         }
     }
@@ -65,8 +65,8 @@ else
                                 <i>Creates</i>
                                 <ul>
                                     @foreach (var createObject in scriptFile.Creates)
-                    {
-                        var createObjectName = createObject.Type.GetSqlObjectName();
+                                    {
+                                        var createObjectName = createObject.Type.GetSqlObjectName();
                                         <li><img src="@Url.Content(GetSqlObjectIconPath(createObject.Type))" alt="@createObjectName" data-toggle="tooltip" title="@createObjectName" /> @createObject.Name</li>
                                     }
                                 </ul>
@@ -78,8 +78,8 @@ else
                                 <i>Depends On</i>
                                 <ul>
                                     @foreach (var dependsObject in scriptFile.DependsOn)
-                    {
-                        var dependsObjectName = dependsObject.Type.GetSqlObjectName();
+                                    {
+                                        var dependsObjectName = dependsObject.Type.GetSqlObjectName();
                                         <li><img src="@Url.Content(GetSqlObjectIconPath(dependsObject.Type))" alt="@dependsObjectName" data-toggle="tooltip" title="@dependsObjectName" /> @dependsObject.Name</li>
                                     }
                                 </ul>
@@ -120,11 +120,19 @@ else
         return date + " " + time;
     }
 
-    var urlObject = window.URL.createObjectURL(new Blob(["@Html.Raw(HttpUtility.JavaScriptStringEncode(Model.Script))"], { type: "text/plain" }));
+    var blob = new Blob(["@Html.Raw(HttpUtility.JavaScriptStringEncode(Model.Script))"], { type: "text/plain" });
 
-    $("#sql-download-link")
-        .attr("href", urlObject)
-        .attr("download", "EasySQL " + GetDateTime() + ".sql");
+    if (window.navigator.msSaveOrOpenBlob) {
+        $("#sql-download-link").click(function () {
+            window.navigator.msSaveOrOpenBlob(blob, "EasySQL " + GetDateTime() + ".sql");
+        });
+    } else {
+        var urlObject = window.URL.createObjectURL(blob);
+
+        $("#sql-download-link")
+            .attr("href", urlObject)
+            .attr("download", "EasySQL " + GetDateTime() + ".sql");
+    }
 
     $("[data-toggle='tooltip']").tooltip();
 

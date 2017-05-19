@@ -188,9 +188,9 @@
                 keyboard: false
             });
 
-            var chat = $.connection.consolidateProgressHub;
+            var hub = $.connection.consolidateProgressHub;
 
-            chat.client.reportProgress = function (scriptFile, labelPercent, percent) {
+            hub.client.reportProgress = function (scriptFile, labelPercent, percent) {
                 var pBar = modal.find(".progress-bar")
                     .css("width", percent + "%")
                     .html(labelPercent + "%");
