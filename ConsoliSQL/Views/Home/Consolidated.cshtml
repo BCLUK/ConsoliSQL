@@ -98,6 +98,30 @@ else
             </div>
         </div>
     </div>
+    @if (Model.ScriptFiles.Any(x => x.ParseErrors.Any()))
+    {
+        <div class="panel panel-default">
+            <div class="panel-heading" data-toggle="collapse" data-target="#parse-errors" role="button">Parse Errors</div>
+            <div class="panel-collapse collapse" id="parse-errors">
+                <div class="panel-body">
+                    @foreach (var scriptFile in Model.ScriptFiles.Where(x => x.ParseErrors.Any()))
+                    {
+                        <ul>
+                            <li>
+                                <strong>@scriptFile.FileName</strong>
+                                <ul>
+                                    @foreach (var parseError in scriptFile.ParseErrors)
+                                    {
+                                        <li>@parseError</li>
+                                    }
+                                </ul>
+                            </li>
+                        </ul>
+                    }
+                </div>
+            </div>
+        </div>
+    }
 </div>
 
 <script src="~/Scripts/viz.js"></script>

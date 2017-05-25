@@ -1,0 +1,17 @@
+﻿@model IEnumerable<QuickGraph.SEdge<ConsoliSQL.Models.ScriptFile>>
+
+@{
+    ViewBag.Title = "Sort Failed";
+}
+
+<h2>@ViewBag.Title</h2>
+<hr />
+
+<h3>Failed to sort dependencies</h3>
+<p>The following scripts depend on each other:</p>
+<ul>
+    @foreach (var edge in Model)
+    {
+        <li>@edge.Source.FileName <span class="glyphicon glyphicon-transfer parallel-edge"></span> @edge.Target.FileName</li>
+    }
+</ul>

@@ -120,7 +120,7 @@ namespace ConsoliSQL.Controllers
                                     {
                                         span.SetAttributeValue("style", "background-color: #FFF176;");
                                     }
-                                    
+
                                     span.InnerHtml = token.Text;
 
                                     html.DocumentNode.AppendChild(span);
@@ -139,20 +139,20 @@ namespace ConsoliSQL.Controllers
                             sqlStatement.AppendLine(BATCH_SEPERATOR);
                             html.DocumentNode.AppendChild(html.CreateTextNode($"{Environment.NewLine}{BATCH_SEPERATOR}"));
                         }
-                        
+
                         scriptFile.Content = sqlStatement.ToString();
                         scriptFile.Overview = html.DocumentNode.OuterHtml;
 
                         scriptFiles.Add(scriptFile);
                     }
                 }
-                
+
                 var dependencyGraph = new AdjacencyGraph<ScriptFile, SEdge<ScriptFile>>();
                 foreach (var scriptFile in scriptFiles)
                 {
                     dependencyGraph.AddVertex(scriptFile);
                 }
-                
+
                 foreach (var scriptFile in scriptFiles)
                 {
                     foreach (var depObj in scriptFile.FilteredDependsOn())
@@ -165,7 +165,14 @@ namespace ConsoliSQL.Controllers
                         }
                     }
                 }
-                
+
+                if (!dependencyGraph.IsDirectedAcyclicGraph())
+                {
+                    var parallelEdges = dependencyGraph.Edges.Where(x => dependencyGraph.ContainsEdge(x.Target, x.Source));
+
+                    return PartialView("TopologicalFail", parallelEdges);
+                }
+
                 var dot = Visualizer.ToDotNotation(dependencyGraph);
                 var orderedScripts = dependencyGraph.TopologicalSort();
                 var script = new StringBuilder();
@@ -196,19 +203,13 @@ namespace ConsoliSQL.Controllers
                     output = output.Replace(WINDOWS_LINE_ENDING, UNIX_LINE_ENDING).Replace(UNIX_LINE_ENDING, WINDOWS_LINE_ENDING);
                 }
 
-                var filteredScriptFiles = orderedScripts.Select(x => 
+                var filteredScriptFiles = orderedScripts.Select(x =>
                 {
                     x.Creates = x.FilteredCreates().GroupBy(y => y.Type).Select(y => y.OrderBy(z => z.Name)).SelectMany(y => y);
                     x.DependsOn = x.UniqueFilteredDependsOn(model.CaseSensitive).GroupBy(y => y.Type).Select(y => y.OrderBy(z => z.Name)).SelectMany(y => y);
                     return x;
                 });
 
-                /*
-                 * Display warning if multiple scripts are creating duplicate object (name==name && type==type)
-                 * Improve parse time
-                 * Add pop out graph
-                */
-                
                 return PartialView("Consolidated", new Consolidated { Script = output, DotNotation = dot, ScriptFiles = filteredScriptFiles });
             }
 
