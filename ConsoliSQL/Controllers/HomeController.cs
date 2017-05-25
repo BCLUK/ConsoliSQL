@@ -84,7 +84,7 @@ namespace ConsoliSQL.Controllers
                                 if (createObj.Type == SqlObjectType.Index)
                                 {
                                     //sqlStatement.AppendFormat("IF EXISTS(SELECT [index_id] FROM [sys].[indexes] WHERE [name] = '{1}' AND [object_id] = OBJECT_ID('{2}', 'U')){0}", Environment.NewLine, createObj.Name, createObj.LinkObject.Name);
-                                    sqlStatement.AppendFormat("IF INDEXPROPERTY(OBJECT_ID('{1}'), '{2}', 'IndexID') IS NOT NULL{0}", Environment.NewLine, createObj.Name, createObj.LinkObject.Name);
+                                    sqlStatement.AppendFormat("IF INDEXPROPERTY(OBJECT_ID('{1}'), '{2}', 'IndexID') IS NOT NULL{0}", Environment.NewLine, createObj.LinkObject.Name, createObj.Name);
                                     sqlStatement.AppendFormat("DROP INDEX {1} ON {2}{0}", Environment.NewLine, createObj.Name, createObj.LinkObject.Name);
                                     sqlStatement.AppendFormat("GO{0}{0}", Environment.NewLine);
                                 }
