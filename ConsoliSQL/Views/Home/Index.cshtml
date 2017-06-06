@@ -51,8 +51,13 @@
     </div>
 
     <div class="checkbox">
-        <label>@Html.CheckBoxFor(x => x.PrependDrops) Prepend IF EXISTS DROP</label>
+        <label>@Html.CheckBoxFor(x => x.PrependDrops, new { id = "prepend-drops-checkbox" }) Prepend IF EXISTS DROP</label>
         <span class="glyphicon glyphicon-info-sign" data-toggle="tooltip" title="Prepends an existance/drop check to every script that creates an object."></span>
+    </div>
+
+    <div class="checkbox">
+        <label>@Html.CheckBoxFor(x => x.DropsAtTop, new { id = "drops-at-top-checkbox", disabled = "disabled" }) Script drops at top</label>
+        <span class="glyphicon glyphicon-info-sign" data-toggle="tooltip" title="Scripts all the if exists drop statements at the top of the generated script instead of before each individual script."></span>
     </div>
 
     <input class="btn btn-default" type="submit" value="Consolidate" />
@@ -78,6 +83,12 @@
     <script src="~/signalr/hubs"></script>
 
     <script>
+        $(function () {
+            $("#prepend-drops-checkbox").click(function () {
+                $("#drops-at-top-checkbox").prop("disabled", !$(this).is(":checked"));
+            });
+        });
+
         function isInputDirSupported() {
             var tmpInput = document.createElement("input");
             if ("webkitdirectory" in tmpInput

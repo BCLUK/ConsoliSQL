@@ -13,5 +13,6 @@ namespace ConsoliSQL.Models
         public bool NormaliseLineEndings { get; set; }
         public bool CaseSensitive { get; set; }
         public bool PrependDrops { get; set; }
+        public bool DropsAtTop { get; set; }
     }
 }

@@ -72,6 +72,10 @@
       <HintPath>..\packages\Microsoft.Owin.Security.2.1.0\lib\net45\Microsoft.Owin.Security.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="Microsoft.SqlServer.Management.SqlParser, Version=13.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>C:\GacDump\Microsoft.SqlServer.Management.SqlParser\13.0.0.0__89845dcd8080cc91\Microsoft.SqlServer.Management.SqlParser.dll</HintPath>
+    </Reference>
     <Reference Include="Microsoft.SqlServer.TransactSql.ScriptDom, Version=14.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91, processorArchitecture=MSIL">
       <HintPath>..\packages\Microsoft.SqlServer.TransactSql.ScriptDom.14.0.3660.1\lib\net40\Microsoft.SqlServer.TransactSql.ScriptDom.dll</HintPath>
       <Private>True</Private>
@@ -199,6 +203,7 @@
     </Compile>
     <Compile Include="Helpers.cs" />
     <Compile Include="Hubs\ConsolidateProgressHub.cs" />
+    <Compile Include="Models\DropStatementException.cs" />
     <Compile Include="Models\Home.cs" />
     <Compile Include="Models\Consolidated.cs" />
     <Compile Include="Models\ScriptFile.cs" />

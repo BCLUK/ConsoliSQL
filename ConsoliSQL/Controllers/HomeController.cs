@@ -77,13 +77,12 @@ namespace ConsoliSQL.Controllers
                         scriptFile.ParseErrors = parseErrors.Select(x => $"{x.Message} Line: {x.Line}");
 
                         var sqlStatement = new StringBuilder();
-                        if (model.PrependDrops)
+                        if (model.PrependDrops && !model.DropsAtTop)
                         {
                             foreach (var createObj in scriptFile.Creates.Where(x => !x.Ignore && !x.IsSystemObject))
                             {
                                 if (createObj.Type == SqlObjectType.Index)
                                 {
-                                    //sqlStatement.AppendFormat("IF EXISTS(SELECT [index_id] FROM [sys].[indexes] WHERE [name] = '{1}' AND [object_id] = OBJECT_ID('{2}', 'U')){0}", Environment.NewLine, createObj.Name, createObj.LinkObject.Name);
                                     sqlStatement.AppendFormat("IF INDEXPROPERTY(OBJECT_ID('{1}'), '{2}', 'IndexID') IS NOT NULL{0}", Environment.NewLine, createObj.LinkObject.Name, createObj.Name);
                                     sqlStatement.AppendFormat("DROP INDEX {1} ON {2}{0}", Environment.NewLine, createObj.Name, createObj.LinkObject.Name);
                                     sqlStatement.AppendFormat("GO{0}{0}", Environment.NewLine);
@@ -96,10 +95,38 @@ namespace ConsoliSQL.Controllers
                                 }
                             }
                         }
-
+                        
+                        var tokenBlacklist = new Dictionary<int, DropStatementException>();
+                        if (model.DropsAtTop)
+                        {
+                            foreach (var dependObj in scriptFile.DependsOn)
+                            {
+                                if (dependObj.IsDrop)
+                                {
+                                    var statement = new StringBuilder();
+                                    for (var i = dependObj.SqlStatement.FirstTokenIndex; i <= dependObj.SqlStatement.LastTokenIndex; i++)
+                                    {
+                                        statement.Append(dependObj.SqlStatement.ScriptTokenStream[i].Text ?? "");
+                                    }
+                                    
+                                    tokenBlacklist.Add(dependObj.SqlStatement.FirstTokenIndex, new DropStatementException(dependObj.SqlStatement.LastTokenIndex - dependObj.SqlStatement.FirstTokenIndex, statement.ToString()));
+                                }
+                            }
+                        }
+                        
                         var indiciesToObjects = scriptFile.Creates.Union(scriptFile.DependsOn).GroupBy(x => x.NameTokenIndex).Select(x => x.First()).ToDictionary(x => x.NameTokenIndex, x => x);
                         for (int i = parseContent.FirstTokenIndex; i <= parseContent.LastTokenIndex; i++)
                         {
+                            if (tokenBlacklist.ContainsKey(i))
+                            {
+                                var statement = tokenBlacklist[i].Statement;
+                                var escapedStatement = Microsoft.SqlServer.Management.SqlParser.Parser.EscapeSequence.SingleQuotedEscapeSequence.Escape(statement);
+
+                                sqlStatement.AppendFormat("/* {0} */ PRINT {1} - Commented out by ConsoliSQL'{2}", statement, escapedStatement.TrimEnd('\''), Environment.NewLine);
+                                i += tokenBlacklist[i].TokenLength;
+                                continue;
+                            }
+
                             var token = parseContent.ScriptTokenStream[i];
                             if (token.Text != null)
                             {
@@ -131,7 +158,7 @@ namespace ConsoliSQL.Controllers
                                 }
                             }
                         }
-
+                        
                         sqlStatement.AppendLine();
 
                         if (model.AppendGo)
@@ -184,6 +211,32 @@ namespace ConsoliSQL.Controllers
                     script.AppendLine();
                     script.AppendLine(BEGIN_TRAN);
                     script.AppendLine();
+                }
+
+                // Needs ordering based on object type
+                if (model.DropsAtTop)
+                {
+                    foreach (var scriptFile in orderedScripts)
+                    {
+                        foreach (var depObj in scriptFile.DependsOn.Where(x => !x.Ignore && !x.IsSystemObject))
+                        {
+                            if (depObj.IsDrop)
+                            {
+                                if (depObj.Type == SqlObjectType.Index)
+                                {
+                                    script.AppendFormat("IF INDEXPROPERTY(OBJECT_ID('{1}'), '{2}', 'IndexID') IS NOT NULL{0}", Environment.NewLine, depObj.LinkObject.Name, depObj.Name);
+                                    script.AppendFormat("DROP INDEX {1} ON {2}{0}", Environment.NewLine, depObj.Name, depObj.LinkObject.Name);
+                                    script.AppendFormat("GO{0}{0}", Environment.NewLine);
+                                }
+                                else
+                                {
+                                    script.AppendFormat("IF OBJECT_ID('{1}', '{2}') IS NOT NULL{0}", Environment.NewLine, depObj.Name, depObj.Type.GetSqlObjectType());
+                                    script.AppendFormat("DROP {1} {2}{0}", Environment.NewLine, depObj.Type.GetSqlObjectKeyword(), depObj.Name);
+                                    script.AppendFormat("GO{0}{0}", Environment.NewLine);
+                                }
+                            }
+                        }
+                    }
                 }
 
                 foreach (var scriptFile in orderedScripts)
