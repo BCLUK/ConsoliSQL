@@ -10,22 +10,23 @@
 
 @using (Html.BeginForm("Index", "Home", FormMethod.Post, new { enctype = "multipart/form-data" }))
 {
-    <div class="form-group">
+    <div class="form-group upload-form-group">
         <div class="form-inline">
             <div class="form-group">
                 <input id="files-input" type="file" class="hide" multiple accept=".sql" />
-                <input id="files-button" type="button" class="btn btn-default" value="+ Upload Files" />
+                <input id="files-button" type="button" class="btn btn-default" value="Upload Files" />
             </div>
             <div class="form-group">
                 <input id="directory-input" type="file" class="hide" webkitdirectory directory mozdirectory />
-                <input id="directory-button" type="button" class="btn btn-default" value="+ Upload Directory" />
+                <input id="directory-button" type="button" class="btn btn-default" value="Upload Directory" />
             </div>
         </div>
         @Html.ValidationMessageFor(x => x.Files, null, new { @class = "text-danger" })
     </div>
 
-    <div class="form-group hide">
-        <div class="well">
+    <div class="form-group">
+        <div id="drag-drop-helper" class="drag-drop">
+            <h4 id="drag-drop-helper-text">Drop files here...</h4>
             <div class="row" id="files"></div>
         </div>
     </div>
@@ -84,6 +85,57 @@
 
     <script>
         $(function () {
+            $("body").on("dragover", function (e) {
+                e.stopPropagation();
+                e.preventDefault();
+                e.originalEvent.dataTransfer.dropEffect = "none";
+            });
+
+            $("#drag-drop-helper").on("dragenter", function (e) {
+                if ($(this).is(e.target) || $(this).has(e.target)) {
+                    $(this).addClass("drag-over");
+                }
+            })
+            .on("dragleave", function (e) {
+                if ($(this).is(e.target)) {
+                    $(this).removeClass("drag-over");
+                }
+            })
+            .on("dragover", function (e) {
+                e.stopPropagation();
+                e.preventDefault();
+                e.originalEvent.dataTransfer.dropEffect = "copy";
+            })
+            .on("drop", function (e) {
+                e.stopPropagation();
+                e.preventDefault();
+
+                $(this).removeClass("drag-over");
+
+                for (var i = 0; i < e.originalEvent.dataTransfer.items.length; i++) {
+                    var item = e.originalEvent.dataTransfer.items[i].webkitGetAsEntry();
+                    iterateIOItems(item);
+                }
+            });
+
+            function iterateIOItems(item) {
+                if (item.isDirectory) {
+                    var dirReader = item.createReader();
+                    dirReader.readEntries(function (items) {
+                        for (var i = 0; i < items.length; i++) {
+                            iterateIOItems(items[i]);
+                        }
+
+                    });
+                } else if (item.isFile) {
+                    if (/.sql$/.test(item.name.toLowerCase())) {
+                        item.file(function (file) {
+                            addFile(file);
+                        });
+                    }
+                }
+            }
+
             $("#prepend-drops-checkbox").click(function () {
                 $("#drops-at-top-checkbox").prop("disabled", !$(this).is(":checked"));
             });
@@ -114,31 +166,39 @@
             $("#directory-input").click();
         });
 
-        var removeFile = function () {
-            selectedFiles.splice(selectedFiles.indexOf($(this).data("file")), 1);
-            updateFiles();
+        var $dragDropHelperText = $("#drag-drop-helper-text");
+
+        var addFile = function (file) {
+            selectedFiles.push(file);
+
+            $("#files").append($("<div>")
+                .addClass("col-md-3")
+                .append($("<div>")
+                    .addClass("file-delete")
+                    .append($("<span>")
+                        .addClass("close")
+                        .html("&times;")
+                        .data("file", file)
+                        .click(removeFile)))
+                .append($("<div>")
+                    .addClass("file-name")
+                    .prop("title", file.name)
+                    .html(file.name)));
+
+            if (selectedFiles.length > 0) {
+                $("#drag-drop-helper").addClass("borderless");
+                $dragDropHelperText.addClass("hide");
+            }
         };
 
-        var updateFiles = function () {
-            $("#files").empty();
+        var removeFile = function () {
+            selectedFiles.splice(selectedFiles.indexOf($(this).data("file")), 1);
+            $(this).parent().parent().remove();
 
-            for (var i = 0; i < selectedFiles.length; i++) {
-                $("#files").append($("<div>")
-                    .addClass("col-md-3")
-                    .append($("<div>")
-                        .addClass("file-delete")
-                        .append($("<span>")
-                            .addClass("close")
-                            .html("&times;")
-                            .data("file", selectedFiles[i])
-                            .click(removeFile)))
-                    .append($("<div>")
-                        .addClass("file-name")
-                        .prop("title", selectedFiles[i].name)
-                        .html(selectedFiles[i].name)));
+            if (selectedFiles.length < 1) {
+                $("#drag-drop-helper").removeClass("borderless");
+                $dragDropHelperText.removeClass("hide");
             }
-
-            $(".form-group:has(#files)").toggleClass("hide", selectedFiles.length < 1);
         };
 
         $("#files-input, #directory-input").change(function () {
@@ -146,11 +206,9 @@
 
             for (var i = 0; i < files.length; i++) {
                 if (/.sql$/.test(files[i].name.toLowerCase())) {
-                    selectedFiles.push(files[i]);
+                    addFile(files[i]);
                 }
             }
-
-            updateFiles();
         });
 
         $("form").submit(function () {

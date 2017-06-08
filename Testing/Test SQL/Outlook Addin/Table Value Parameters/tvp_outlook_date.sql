@@ -1,0 +1,11 @@
+IF TYPE_ID('tvp_outlook_timeslot') IS NOT NULL
+DROP TYPE tvp_outlook_timeslot
+GO
+
+CREATE TYPE tvp_outlook_timeslot AS TABLE 
+(
+	START_DATETIME DATETIME,
+	END_DATETIME DATETIME,
+	PRIMARY KEY (START_DATETIME, END_DATETIME)
+)
+GO

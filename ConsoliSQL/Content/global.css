@@ -66,3 +66,29 @@ textarea {
 .parallel-edge {
   margin: 0px 10px;
 }
+.drag-drop {
+  border: 2px dashed #2196F3;
+  -moz-border-radius: 5px;
+  -webkit-border-radius: 5px;
+  border-radius: 5px;
+  background: #FAFAFA;
+  padding: 15px;
+  color: #616161;
+}
+.drag-over {
+  border-style: solid !important;
+}
+.drag-over > * {
+  opacity: 0.5;
+  pointer-events: none;
+}
+.borderless {
+  border-style: none;
+}
+#drag-drop-helper-text {
+  text-align: center;
+}
+.upload-form-group {
+  margin-bottom: 5px !important;
+  text-align: right;
+}
