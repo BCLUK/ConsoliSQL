@@ -32,7 +32,8 @@ else
     {
         switch (type)
         {
-            case ConsoliSQL.Models.SqlObjectType.Table: return "~/Content/Images/Table.png";
+            case ConsoliSQL.Models.SqlObjectType.Table:
+            case ConsoliSQL.Models.SqlObjectType.TableValueParameter: return "~/Content/Images/Table.png";
             case ConsoliSQL.Models.SqlObjectType.View: return "~/Content/Images/View.png";
             case ConsoliSQL.Models.SqlObjectType.TableOrView: return "~/Content/Images/TableOrView.gif";
             case ConsoliSQL.Models.SqlObjectType.Index: return "~/Content/Images/Index.png";

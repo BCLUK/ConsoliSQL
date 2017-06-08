@@ -57,6 +57,7 @@ namespace ConsoliSQL.Models
         TableValuedFunction,
         InlineTableValuedFunction,
         Procedure,
-        Trigger
+        Trigger,
+        TableValueParameter
     }
 }

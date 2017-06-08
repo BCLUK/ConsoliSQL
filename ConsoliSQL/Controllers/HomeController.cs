@@ -81,18 +81,7 @@ namespace ConsoliSQL.Controllers
                         {
                             foreach (var createObj in scriptFile.Creates.Where(x => !x.Ignore && !x.IsSystemObject))
                             {
-                                if (createObj.Type == SqlObjectType.Index)
-                                {
-                                    sqlStatement.AppendFormat("IF INDEXPROPERTY(OBJECT_ID('{1}'), '{2}', 'IndexID') IS NOT NULL{0}", Environment.NewLine, createObj.LinkObject.Name, createObj.Name);
-                                    sqlStatement.AppendFormat("DROP INDEX {1} ON {2}{0}", Environment.NewLine, createObj.Name, createObj.LinkObject.Name);
-                                    sqlStatement.AppendFormat("GO{0}{0}", Environment.NewLine);
-                                }
-                                else
-                                {
-                                    sqlStatement.AppendFormat("IF OBJECT_ID('{1}', '{2}') IS NOT NULL{0}", Environment.NewLine, createObj.Name, createObj.Type.GetSqlObjectType());
-                                    sqlStatement.AppendFormat("DROP {1} {2}{0}", Environment.NewLine, createObj.Type.GetSqlObjectKeyword(), createObj.Name);
-                                    sqlStatement.AppendFormat("GO{0}{0}", Environment.NewLine);
-                                }
+                                sqlStatement.Append(createObj.ScriptDropStatement());
                             }
                         }
                         
@@ -212,29 +201,14 @@ namespace ConsoliSQL.Controllers
                     script.AppendLine(BEGIN_TRAN);
                     script.AppendLine();
                 }
-
-                // Needs ordering based on object type
+                
                 if (model.DropsAtTop)
                 {
-                    foreach (var scriptFile in orderedScripts)
+                    foreach (var scriptFile in orderedScripts.Reverse())
                     {
-                        foreach (var depObj in scriptFile.DependsOn.Where(x => !x.Ignore && !x.IsSystemObject))
+                        foreach (var createObj in scriptFile.Creates.Where(x => !x.Ignore && !x.IsSystemObject))
                         {
-                            if (depObj.IsDrop)
-                            {
-                                if (depObj.Type == SqlObjectType.Index)
-                                {
-                                    script.AppendFormat("IF INDEXPROPERTY(OBJECT_ID('{1}'), '{2}', 'IndexID') IS NOT NULL{0}", Environment.NewLine, depObj.LinkObject.Name, depObj.Name);
-                                    script.AppendFormat("DROP INDEX {1} ON {2}{0}", Environment.NewLine, depObj.Name, depObj.LinkObject.Name);
-                                    script.AppendFormat("GO{0}{0}", Environment.NewLine);
-                                }
-                                else
-                                {
-                                    script.AppendFormat("IF OBJECT_ID('{1}', '{2}') IS NOT NULL{0}", Environment.NewLine, depObj.Name, depObj.Type.GetSqlObjectType());
-                                    script.AppendFormat("DROP {1} {2}{0}", Environment.NewLine, depObj.Type.GetSqlObjectKeyword(), depObj.Name);
-                                    script.AppendFormat("GO{0}{0}", Environment.NewLine);
-                                }
-                            }
+                            script.Append(createObj.ScriptDropStatement());
                         }
                     }
                 }
@@ -243,6 +217,14 @@ namespace ConsoliSQL.Controllers
                 {
                     script.AppendFormat("-- {1}{0}", Environment.NewLine, scriptFile.FileName);
                     script.AppendLine(scriptFile.Content);
+
+                    if (model.WrapTransaction)
+                    {
+                        script.AppendLine("IF @@ERROR <> 0");
+                        script.AppendFormat("RAISERROR('! Error occurred when executing ''{0}''', 20, -1) WITH LOG{1}", scriptFile.FileName, Environment.NewLine);
+                        script.AppendLine("GO");
+                        script.AppendLine();
+                    }
                 }
 
                 if (model.WrapTransaction)

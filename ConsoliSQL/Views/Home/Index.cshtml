@@ -32,7 +32,7 @@
 
     <div class="checkbox">
         <label>@Html.CheckBoxFor(x => x.WrapTransaction) Wrap scripts in a transaction</label>
-        <span class="glyphicon glyphicon-info-sign" data-toggle="tooltip" title="Wraps all the consolidated scripts in a transaction so you can easily rollback on error."></span>
+        <span class="glyphicon glyphicon-info-sign" data-toggle="tooltip" title="Wraps all the consolidated scripts in a transaction so you can easily rollback on error. Appends an @("@@")ERROR check to each script file."></span>
     </div>
 
     <div class="checkbox">
@@ -41,7 +41,7 @@
     </div>
 
     <div class="checkbox">
-        <label>@Html.CheckBoxFor(x => x.NormaliseLineEndings) Normalise line endings</label>
+        <label>@Html.CheckBoxFor(x => x.NormaliseLineEndings, new { @checked = "checked" }) Normalise line endings</label>
         <span class="glyphicon glyphicon-info-sign" data-toggle="tooltip" title="Makes sure all line endings are the same (\r\n) whilst stopping that pesky SSMS line endings message from popping up!"></span>
     </div>
 
@@ -59,7 +59,7 @@
         <label>@Html.CheckBoxFor(x => x.DropsAtTop, new { id = "drops-at-top-checkbox", disabled = "disabled" }) Script drops at top</label>
         <span class="glyphicon glyphicon-info-sign" data-toggle="tooltip" title="Scripts all the if exists drop statements at the top of the generated script instead of before each individual script."></span>
     </div>
-
+    
     <input class="btn btn-default" type="submit" value="Consolidate" />
 }
 
