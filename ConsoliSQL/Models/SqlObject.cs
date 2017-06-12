@@ -8,7 +8,7 @@ namespace ConsoliSQL.Models
 {
     public class SqlObject
     {
-        public SqlObject(string name, SqlObjectType type, bool isCreate, int nameTokenIndex, ScriptFile file)
+        public SqlObject(string name, SqlObjectType type, bool isCreate, int nameTokenIndex, ScriptFile file, bool testVar)
         {
             Name = name;
             Type = type;
@@ -18,14 +18,15 @@ namespace ConsoliSQL.Models
             Ignore = IsTemporaryTable(Name);
             IsSystemObject = SqlSystemObjects.Instance.Objects.Contains(Name); // Good idea to fetch system objects with their type and improve this check..
             IsDrop = false;
+            IsDescendant = testVar;
         }
 
-        public SqlObject(string name, SqlObjectType type, bool isCreate, int nameTokenIndex, ScriptFile file, SqlObject linkObject) : this(name, type, isCreate, nameTokenIndex, file)
+        public SqlObject(string name, SqlObjectType type, bool isCreate, int nameTokenIndex, ScriptFile file, SqlObject linkObject, bool isDescendant) : this(name, type, isCreate, nameTokenIndex, file, isDescendant)
         {
             LinkObject = linkObject;
         }
 
-        public SqlObject(string name, SqlObjectType type, bool isCreate, int nameTokenIndex, ScriptFile file, SqlObject linkObject, bool isDrop, TSqlStatement sqlStatement) : this(name, type, isCreate, nameTokenIndex, file, linkObject)
+        public SqlObject(string name, SqlObjectType type, bool isCreate, int nameTokenIndex, ScriptFile file, SqlObject linkObject, bool isDrop, TSqlStatement sqlStatement, bool isDescendant) : this(name, type, isCreate, nameTokenIndex, file, linkObject, isDescendant)
         {
             IsDrop = isDrop;
             SqlStatement = sqlStatement;
@@ -41,6 +42,7 @@ namespace ConsoliSQL.Models
         public SqlObject LinkObject { get; set; }
         public bool IsDrop { get; set; }
         public TSqlStatement SqlStatement { get; set; }
+        public bool IsDescendant { get; set; }
 
         private static bool IsTemporaryTable(string name) =>
             System.Text.RegularExpressions.Regex.IsMatch(name, "^##?");

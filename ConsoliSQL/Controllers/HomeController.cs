@@ -67,7 +67,8 @@ namespace ConsoliSQL.Controllers
                         {
                             foreach (var statement in batch.Statements)
                             {
-                                Helpers.FindDependencies(statement, sqlObjects, scriptFile);
+                                var isDescendant = false;
+                                Helpers.FindDependencies(statement, sqlObjects, scriptFile, ref isDescendant);
                             }
                         }
 
@@ -90,7 +91,7 @@ namespace ConsoliSQL.Controllers
                         {
                             foreach (var dependObj in scriptFile.DependsOn)
                             {
-                                if (dependObj.IsDrop)
+                                if (dependObj.IsDrop && !dependObj.IsDescendant)
                                 {
                                     var statement = new StringBuilder();
                                     for (var i = dependObj.SqlStatement.FirstTokenIndex; i <= dependObj.SqlStatement.LastTokenIndex; i++)

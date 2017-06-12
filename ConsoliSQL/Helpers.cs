@@ -11,9 +11,9 @@ namespace ConsoliSQL
 {
     public static class Helpers
     {
-        public static void FindDependencies(object obj, HashSet<SqlObject> sqlObjects, ScriptFile scriptFile)
+        public static void FindDependencies(object obj, HashSet<SqlObject> sqlObjects, ScriptFile scriptFile, ref bool isDescendant)
         {
-            GetDependency(obj, sqlObjects, scriptFile);
+            GetDependency(obj, sqlObjects, scriptFile, ref isDescendant);
             
             foreach (PropertyInfo prop in obj.GetType().GetProperties())
             {
@@ -29,45 +29,46 @@ namespace ConsoliSQL
                         var propVal = prop.GetValue(obj);
                         if (propVal != null)
                         {
-                            FindDependencies(propVal, sqlObjects, scriptFile);
+                            var isDescendantCopy = isDescendant;
+                            FindDependencies(propVal, sqlObjects, scriptFile, ref isDescendantCopy);
                         }
                     }
                 }
             }
         }
         
-        public static void GetDependency(object obj, HashSet<SqlObject> sqlObjects, ScriptFile scriptFile)
+        public static void GetDependency(object obj, HashSet<SqlObject> sqlObjects, ScriptFile scriptFile, ref bool isDescendant)
         {
             if (obj is FunctionCall)
             {
                 if (((FunctionCall)obj).CallTarget != null)
                 {
-                    sqlObjects.Add(new SqlObject(((FunctionCall)obj).FunctionName.Value, SqlObjectType.ScalarFunction, false, ((FunctionCall)obj).FunctionName.FirstTokenIndex, scriptFile));
+                    sqlObjects.Add(new SqlObject(((FunctionCall)obj).FunctionName.Value, SqlObjectType.ScalarFunction, false, ((FunctionCall)obj).FunctionName.FirstTokenIndex, scriptFile, isDescendant));
                 }
             }
             else if (obj is SchemaObjectFunctionTableReference)
             {
-                sqlObjects.Add(new SqlObject(((SchemaObjectFunctionTableReference)obj).SchemaObject.BaseIdentifier.Value, SqlObjectType.TableValuedFunction | SqlObjectType.InlineTableValuedFunction, false, ((SchemaObjectFunctionTableReference)obj).SchemaObject.BaseIdentifier.FirstTokenIndex, scriptFile));
+                sqlObjects.Add(new SqlObject(((SchemaObjectFunctionTableReference)obj).SchemaObject.BaseIdentifier.Value, SqlObjectType.TableValuedFunction | SqlObjectType.InlineTableValuedFunction, false, ((SchemaObjectFunctionTableReference)obj).SchemaObject.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant));
             }
             else if (obj is ExecutableProcedureReference)
             {
-                sqlObjects.Add(new SqlObject(((ExecutableProcedureReference)obj).ProcedureReference.ProcedureReference.Name.BaseIdentifier.Value, SqlObjectType.Procedure, false, ((ExecutableProcedureReference)obj).ProcedureReference.ProcedureReference.Name.BaseIdentifier.FirstTokenIndex, scriptFile));
+                sqlObjects.Add(new SqlObject(((ExecutableProcedureReference)obj).ProcedureReference.ProcedureReference.Name.BaseIdentifier.Value, SqlObjectType.Procedure, false, ((ExecutableProcedureReference)obj).ProcedureReference.ProcedureReference.Name.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant));
             }
             else if (obj is NamedTableReference)
             {
                 // Gets tables and views
-                sqlObjects.Add(new SqlObject(((NamedTableReference)obj).SchemaObject.BaseIdentifier.Value, SqlObjectType.TableOrView, false, ((NamedTableReference)obj).SchemaObject.BaseIdentifier.FirstTokenIndex, scriptFile));
+                sqlObjects.Add(new SqlObject(((NamedTableReference)obj).SchemaObject.BaseIdentifier.Value, SqlObjectType.TableOrView, false, ((NamedTableReference)obj).SchemaObject.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant));
             }
             else if (obj is TriggerObject)
             {
-                sqlObjects.Add(new SqlObject(((TriggerObject)obj).Name.BaseIdentifier.Value, SqlObjectType.Trigger, false, ((TriggerObject)obj).Name.BaseIdentifier.FirstTokenIndex, scriptFile));
+                sqlObjects.Add(new SqlObject(((TriggerObject)obj).Name.BaseIdentifier.Value, SqlObjectType.Trigger, false, ((TriggerObject)obj).Name.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant));
             }
             else if (obj is DropTableStatement)
             {
                 // You can drop multiple objects in one drop statement e.g.: DROP PROCEDURE USP4, USP5, USP6
                 foreach (var table in ((DropTableStatement)obj).Objects)
                 {
-                    sqlObjects.Add(new SqlObject(table.BaseIdentifier.Value, SqlObjectType.Table, false, table.BaseIdentifier.FirstTokenIndex, scriptFile, null, true, (TSqlStatement)obj));
+                    sqlObjects.Add(new SqlObject(table.BaseIdentifier.Value, SqlObjectType.Table, false, table.BaseIdentifier.FirstTokenIndex, scriptFile, null, true, (TSqlStatement)obj, isDescendant));
                 }
             }
             else if (obj is DropFunctionStatement)
@@ -75,116 +76,124 @@ namespace ConsoliSQL
                 foreach (var function in ((DropFunctionStatement)obj).Objects)
                 {
                     // Needs reviewing                                                        v
-                    sqlObjects.Add(new SqlObject(function.BaseIdentifier.Value, SqlObjectType.ScalarFunction, false, function.BaseIdentifier.FirstTokenIndex, scriptFile, null, true, (TSqlStatement)obj));
+                    sqlObjects.Add(new SqlObject(function.BaseIdentifier.Value, SqlObjectType.ScalarFunction, false, function.BaseIdentifier.FirstTokenIndex, scriptFile, null, true, (TSqlStatement)obj, isDescendant));
                 }
             }
             else if (obj is DropIndexClause)
             {
-                sqlObjects.Add(new SqlObject(((DropIndexClause)obj).Index.Value, SqlObjectType.Index, false, ((DropIndexClause)obj).Index.FirstTokenIndex, scriptFile, null, true, (TSqlStatement)obj));
-                sqlObjects.Add(new SqlObject(((DropIndexClause)obj).Object.BaseIdentifier.Value, SqlObjectType.Table, false, ((DropIndexClause)obj).Object.BaseIdentifier.FirstTokenIndex, scriptFile, null, true, (TSqlStatement)obj));
+                sqlObjects.Add(new SqlObject(((DropIndexClause)obj).Index.Value, SqlObjectType.Index, false, ((DropIndexClause)obj).Index.FirstTokenIndex, scriptFile, null, true, (TSqlStatement)obj, isDescendant));
+                sqlObjects.Add(new SqlObject(((DropIndexClause)obj).Object.BaseIdentifier.Value, SqlObjectType.Table, false, ((DropIndexClause)obj).Object.BaseIdentifier.FirstTokenIndex, scriptFile, null, true, (TSqlStatement)obj, isDescendant));
             }
             else if (obj is BackwardsCompatibleDropIndexClause)
             {
-                sqlObjects.Add(new SqlObject(((BackwardsCompatibleDropIndexClause)obj).Index.ChildIdentifier.Value, SqlObjectType.Index, false, ((BackwardsCompatibleDropIndexClause)obj).Index.ChildIdentifier.FirstTokenIndex, scriptFile, null, true, (TSqlStatement)obj));
-                sqlObjects.Add(new SqlObject(((BackwardsCompatibleDropIndexClause)obj).Index.BaseIdentifier.Value, SqlObjectType.Table, false, ((BackwardsCompatibleDropIndexClause)obj).Index.BaseIdentifier.FirstTokenIndex, scriptFile, null, true, (TSqlStatement)obj));
+                sqlObjects.Add(new SqlObject(((BackwardsCompatibleDropIndexClause)obj).Index.ChildIdentifier.Value, SqlObjectType.Index, false, ((BackwardsCompatibleDropIndexClause)obj).Index.ChildIdentifier.FirstTokenIndex, scriptFile, null, true, (TSqlStatement)obj, isDescendant));
+                sqlObjects.Add(new SqlObject(((BackwardsCompatibleDropIndexClause)obj).Index.BaseIdentifier.Value, SqlObjectType.Table, false, ((BackwardsCompatibleDropIndexClause)obj).Index.BaseIdentifier.FirstTokenIndex, scriptFile, null, true, (TSqlStatement)obj, isDescendant));
             }
             else if (obj is DropProcedureStatement)
             {
                 foreach (var procedure in ((DropProcedureStatement)obj).Objects)
                 {
-                    sqlObjects.Add(new SqlObject(procedure.BaseIdentifier.Value, SqlObjectType.Procedure, false, procedure.BaseIdentifier.FirstTokenIndex, scriptFile, null, true, (TSqlStatement)obj));
+                    sqlObjects.Add(new SqlObject(procedure.BaseIdentifier.Value, SqlObjectType.Procedure, false, procedure.BaseIdentifier.FirstTokenIndex, scriptFile, null, true, (TSqlStatement)obj, isDescendant));
                 }
             }
             else if (obj is DropTriggerStatement)
             {
                 foreach (var trigger in ((DropTriggerStatement)obj).Objects)
                 {
-                    sqlObjects.Add(new SqlObject(trigger.BaseIdentifier.Value, SqlObjectType.Trigger, false, trigger.BaseIdentifier.FirstTokenIndex, scriptFile, null, true, (TSqlStatement)obj));
+                    sqlObjects.Add(new SqlObject(trigger.BaseIdentifier.Value, SqlObjectType.Trigger, false, trigger.BaseIdentifier.FirstTokenIndex, scriptFile, null, true, (TSqlStatement)obj, isDescendant));
                 }
             }
             else if (obj is DropViewStatement)
             {
                 foreach (var view in ((DropViewStatement)obj).Objects)
                 {
-                    sqlObjects.Add(new SqlObject(view.BaseIdentifier.Value, SqlObjectType.View, false, view.BaseIdentifier.FirstTokenIndex, scriptFile, null, true, (TSqlStatement)obj));
+                    sqlObjects.Add(new SqlObject(view.BaseIdentifier.Value, SqlObjectType.View, false, view.BaseIdentifier.FirstTokenIndex, scriptFile, null, true, (TSqlStatement)obj, isDescendant));
                 }
             }
             else if (obj is AlterTableAddTableElementStatement)
             {
-                sqlObjects.Add(new SqlObject(((AlterTableAddTableElementStatement)obj).SchemaObjectName.BaseIdentifier.Value, SqlObjectType.Table, false, ((AlterTableAddTableElementStatement)obj).SchemaObjectName.BaseIdentifier.FirstTokenIndex, scriptFile));
+                sqlObjects.Add(new SqlObject(((AlterTableAddTableElementStatement)obj).SchemaObjectName.BaseIdentifier.Value, SqlObjectType.Table, false, ((AlterTableAddTableElementStatement)obj).SchemaObjectName.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant));
             }
             else if (obj is AlterTableAlterColumnStatement)
             {
-                sqlObjects.Add(new SqlObject(((AlterTableAlterColumnStatement)obj).SchemaObjectName.BaseIdentifier.Value, SqlObjectType.Table, false, ((AlterTableAlterColumnStatement)obj).SchemaObjectName.BaseIdentifier.FirstTokenIndex, scriptFile));
+                sqlObjects.Add(new SqlObject(((AlterTableAlterColumnStatement)obj).SchemaObjectName.BaseIdentifier.Value, SqlObjectType.Table, false, ((AlterTableAlterColumnStatement)obj).SchemaObjectName.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant));
             }
             else if (obj is AlterTableAlterIndexStatement)
             {
-                sqlObjects.Add(new SqlObject(((AlterTableAlterIndexStatement)obj).SchemaObjectName.BaseIdentifier.Value, SqlObjectType.Table, false, ((AlterTableAlterIndexStatement)obj).SchemaObjectName.BaseIdentifier.FirstTokenIndex, scriptFile));
-                sqlObjects.Add(new SqlObject(((AlterTableAlterIndexStatement)obj).IndexIdentifier.Value, SqlObjectType.Index, false, ((AlterTableAlterIndexStatement)obj).IndexIdentifier.FirstTokenIndex, scriptFile));
+                sqlObjects.Add(new SqlObject(((AlterTableAlterIndexStatement)obj).SchemaObjectName.BaseIdentifier.Value, SqlObjectType.Table, false, ((AlterTableAlterIndexStatement)obj).SchemaObjectName.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant));
+                sqlObjects.Add(new SqlObject(((AlterTableAlterIndexStatement)obj).IndexIdentifier.Value, SqlObjectType.Index, false, ((AlterTableAlterIndexStatement)obj).IndexIdentifier.FirstTokenIndex, scriptFile, isDescendant));
             }
             else if (obj is AlterTableConstraintModificationStatement)
             {
-                sqlObjects.Add(new SqlObject(((AlterTableConstraintModificationStatement)obj).SchemaObjectName.BaseIdentifier.Value, SqlObjectType.Table, false, ((AlterTableConstraintModificationStatement)obj).SchemaObjectName.BaseIdentifier.FirstTokenIndex, scriptFile));
+                sqlObjects.Add(new SqlObject(((AlterTableConstraintModificationStatement)obj).SchemaObjectName.BaseIdentifier.Value, SqlObjectType.Table, false, ((AlterTableConstraintModificationStatement)obj).SchemaObjectName.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant));
             }
             else if (obj is AlterTableDropTableElementStatement)
             {
-                sqlObjects.Add(new SqlObject(((AlterTableDropTableElementStatement)obj).SchemaObjectName.BaseIdentifier.Value, SqlObjectType.Table, false, ((AlterTableDropTableElementStatement)obj).SchemaObjectName.BaseIdentifier.FirstTokenIndex, scriptFile));
+                sqlObjects.Add(new SqlObject(((AlterTableDropTableElementStatement)obj).SchemaObjectName.BaseIdentifier.Value, SqlObjectType.Table, false, ((AlterTableDropTableElementStatement)obj).SchemaObjectName.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant));
             }
             else if (obj is AlterTableRebuildStatement)
             {
-                sqlObjects.Add(new SqlObject(((AlterTableRebuildStatement)obj).SchemaObjectName.BaseIdentifier.Value, SqlObjectType.Table, false, ((AlterTableRebuildStatement)obj).SchemaObjectName.BaseIdentifier.FirstTokenIndex, scriptFile));
+                sqlObjects.Add(new SqlObject(((AlterTableRebuildStatement)obj).SchemaObjectName.BaseIdentifier.Value, SqlObjectType.Table, false, ((AlterTableRebuildStatement)obj).SchemaObjectName.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant));
             }
             else if (obj is AlterTableSetStatement)
             {
-                sqlObjects.Add(new SqlObject(((AlterTableSetStatement)obj).SchemaObjectName.BaseIdentifier.Value, SqlObjectType.Table, false, ((AlterTableSetStatement)obj).SchemaObjectName.BaseIdentifier.FirstTokenIndex, scriptFile));
+                sqlObjects.Add(new SqlObject(((AlterTableSetStatement)obj).SchemaObjectName.BaseIdentifier.Value, SqlObjectType.Table, false, ((AlterTableSetStatement)obj).SchemaObjectName.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant));
             }
             else if (obj is AlterTableSwitchStatement)
             {
-                sqlObjects.Add(new SqlObject(((AlterTableSwitchStatement)obj).SchemaObjectName.BaseIdentifier.Value, SqlObjectType.Table, false, ((AlterTableSwitchStatement)obj).SchemaObjectName.BaseIdentifier.FirstTokenIndex, scriptFile));
-                sqlObjects.Add(new SqlObject(((AlterTableSwitchStatement)obj).TargetTable.BaseIdentifier.Value, SqlObjectType.Table, false, ((AlterTableSwitchStatement)obj).TargetTable.BaseIdentifier.FirstTokenIndex, scriptFile));
+                sqlObjects.Add(new SqlObject(((AlterTableSwitchStatement)obj).SchemaObjectName.BaseIdentifier.Value, SqlObjectType.Table, false, ((AlterTableSwitchStatement)obj).SchemaObjectName.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant));
+                sqlObjects.Add(new SqlObject(((AlterTableSwitchStatement)obj).TargetTable.BaseIdentifier.Value, SqlObjectType.Table, false, ((AlterTableSwitchStatement)obj).TargetTable.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant));
             }
             else if (obj is AlterTableTriggerModificationStatement)
             {
-                var triggerTable = new SqlObject(((AlterTableTriggerModificationStatement)obj).SchemaObjectName.BaseIdentifier.Value, SqlObjectType.Table, false, ((AlterTableTriggerModificationStatement)obj).SchemaObjectName.BaseIdentifier.FirstTokenIndex, scriptFile);
+                var triggerTable = new SqlObject(((AlterTableTriggerModificationStatement)obj).SchemaObjectName.BaseIdentifier.Value, SqlObjectType.Table, false, ((AlterTableTriggerModificationStatement)obj).SchemaObjectName.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant);
                 sqlObjects.Add(triggerTable);
 
                 foreach (var trigger in ((AlterTableTriggerModificationStatement)obj).TriggerNames)
                 {
-                    sqlObjects.Add(new SqlObject(trigger.Value, SqlObjectType.Trigger, false, trigger.FirstTokenIndex, scriptFile, triggerTable));
+                    sqlObjects.Add(new SqlObject(trigger.Value, SqlObjectType.Trigger, false, trigger.FirstTokenIndex, scriptFile, triggerTable, isDescendant));
                 }
             }
             else if (obj is CreateFunctionStatement)
             {
+                isDescendant = true;
+
                 var returnType = ((CreateFunctionStatement)obj).ReturnType;
-                sqlObjects.Add(new SqlObject(((CreateFunctionStatement)obj).Name.BaseIdentifier.Value, returnType is TableValuedFunctionReturnType ? SqlObjectType.TableValuedFunction : returnType is SelectFunctionReturnType ? SqlObjectType.InlineTableValuedFunction : SqlObjectType.ScalarFunction, true, ((CreateFunctionStatement)obj).Name.BaseIdentifier.FirstTokenIndex, scriptFile));
+                sqlObjects.Add(new SqlObject(((CreateFunctionStatement)obj).Name.BaseIdentifier.Value, returnType is TableValuedFunctionReturnType ? SqlObjectType.TableValuedFunction : returnType is SelectFunctionReturnType ? SqlObjectType.InlineTableValuedFunction : SqlObjectType.ScalarFunction, true, ((CreateFunctionStatement)obj).Name.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant));
             }
             else if (obj is CreateProcedureStatement)
             {
-                sqlObjects.Add(new SqlObject(((CreateProcedureStatement)obj).ProcedureReference.Name.BaseIdentifier.Value, SqlObjectType.Procedure, true, ((CreateProcedureStatement)obj).ProcedureReference.Name.BaseIdentifier.FirstTokenIndex, scriptFile));
+                isDescendant = true;
+
+                sqlObjects.Add(new SqlObject(((CreateProcedureStatement)obj).ProcedureReference.Name.BaseIdentifier.Value, SqlObjectType.Procedure, true, ((CreateProcedureStatement)obj).ProcedureReference.Name.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant));
             }
             else if (obj is CreateViewStatement)
             {
-                sqlObjects.Add(new SqlObject(((CreateViewStatement)obj).SchemaObjectName.BaseIdentifier.Value, SqlObjectType.View, true, ((CreateViewStatement)obj).SchemaObjectName.BaseIdentifier.FirstTokenIndex, scriptFile));
+                isDescendant = true;
+
+                sqlObjects.Add(new SqlObject(((CreateViewStatement)obj).SchemaObjectName.BaseIdentifier.Value, SqlObjectType.View, true, ((CreateViewStatement)obj).SchemaObjectName.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant));
             }
             else if (obj is CreateTriggerStatement)
             {
-                var onTable = new SqlObject(((CreateTriggerStatement)obj).TriggerObject.Name.BaseIdentifier.Value, SqlObjectType.Table, false, ((CreateTriggerStatement)obj).TriggerObject.Name.BaseIdentifier.FirstTokenIndex, scriptFile);
+                isDescendant = true;
+
+                var onTable = new SqlObject(((CreateTriggerStatement)obj).TriggerObject.Name.BaseIdentifier.Value, SqlObjectType.Table, false, ((CreateTriggerStatement)obj).TriggerObject.Name.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant);
                 sqlObjects.Add(onTable);
-                sqlObjects.Add(new SqlObject(((CreateTriggerStatement)obj).Name.BaseIdentifier.Value, SqlObjectType.Trigger, true, ((CreateTriggerStatement)obj).Name.BaseIdentifier.FirstTokenIndex, scriptFile, onTable)); // Added table as link object but not needed to drop trigger
+                sqlObjects.Add(new SqlObject(((CreateTriggerStatement)obj).Name.BaseIdentifier.Value, SqlObjectType.Trigger, true, ((CreateTriggerStatement)obj).Name.BaseIdentifier.FirstTokenIndex, scriptFile, onTable, isDescendant)); // Added table as link object but not needed to drop trigger
             }
             else if (obj is CreateIndexStatement)
             {
-                var onTable = new SqlObject(((CreateIndexStatement)obj).OnName.BaseIdentifier.Value, SqlObjectType.Table, false, ((CreateIndexStatement)obj).OnName.BaseIdentifier.FirstTokenIndex, scriptFile);
+                var onTable = new SqlObject(((CreateIndexStatement)obj).OnName.BaseIdentifier.Value, SqlObjectType.Table, false, ((CreateIndexStatement)obj).OnName.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant);
                 sqlObjects.Add(onTable);
-                sqlObjects.Add(new SqlObject(((CreateIndexStatement)obj).Name.Value, SqlObjectType.Index, true, ((CreateIndexStatement)obj).Name.FirstTokenIndex, scriptFile, onTable));
+                sqlObjects.Add(new SqlObject(((CreateIndexStatement)obj).Name.Value, SqlObjectType.Index, true, ((CreateIndexStatement)obj).Name.FirstTokenIndex, scriptFile, onTable, isDescendant));
             }
             else if (obj is CreateTableStatement)
             {
-                sqlObjects.Add(new SqlObject(((CreateTableStatement)obj).SchemaObjectName.BaseIdentifier.Value, SqlObjectType.Table, true, ((CreateTableStatement)obj).SchemaObjectName.BaseIdentifier.FirstTokenIndex, scriptFile));
+                sqlObjects.Add(new SqlObject(((CreateTableStatement)obj).SchemaObjectName.BaseIdentifier.Value, SqlObjectType.Table, true, ((CreateTableStatement)obj).SchemaObjectName.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant));
             }
             else if (obj is CreateTypeTableStatement)
             {
-                sqlObjects.Add(new SqlObject(((CreateTypeTableStatement)obj).Name.BaseIdentifier.Value, SqlObjectType.TableValueParameter, true, ((CreateTypeTableStatement)obj).Name.BaseIdentifier.FirstTokenIndex, scriptFile));
+                sqlObjects.Add(new SqlObject(((CreateTypeTableStatement)obj).Name.BaseIdentifier.Value, SqlObjectType.TableValueParameter, true, ((CreateTypeTableStatement)obj).Name.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant));
             }
             else if (obj is CreateTypeUddtStatement)
             {
@@ -197,13 +206,42 @@ namespace ConsoliSQL
             else if (obj is UserDataTypeReference)
             {
                 var typedObj = (UserDataTypeReference)obj;
-                sqlObjects.Add(new SqlObject(typedObj.Name.BaseIdentifier.Value, SqlObjectType.TableValueParameter, false, typedObj.Name.BaseIdentifier.FirstTokenIndex, scriptFile));
+                sqlObjects.Add(new SqlObject(typedObj.Name.BaseIdentifier.Value, SqlObjectType.TableValueParameter, false, typedObj.Name.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant));
+            }
+            else if (obj is AlterProcedureStatement)
+            {
+                isDescendant = true;
+
+                var typedObj = (AlterProcedureStatement)obj;
+                sqlObjects.Add(new SqlObject(typedObj.ProcedureReference.Name.BaseIdentifier.Value, SqlObjectType.Procedure, false, typedObj.ProcedureReference.Name.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant));
+            }
+            else if (obj is AlterFunctionStatement)
+            {
+                isDescendant = true;
+
+                var typedObj = (AlterFunctionStatement)obj;
+                sqlObjects.Add(new SqlObject(typedObj.Name.BaseIdentifier.Value, typedObj.ReturnType is TableValuedFunctionReturnType ? SqlObjectType.TableValuedFunction : typedObj.ReturnType is SelectFunctionReturnType ? SqlObjectType.InlineTableValuedFunction : SqlObjectType.ScalarFunction, false, typedObj.Name.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant));
+            }
+            else if (obj is AlterViewStatement)
+            {
+                isDescendant = true;
+
+                var typedObj = (AlterViewStatement)obj;
+                sqlObjects.Add(new SqlObject(typedObj.SchemaObjectName.BaseIdentifier.Value, SqlObjectType.View, false, typedObj.SchemaObjectName.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant));
+            }
+            else if (obj is AlterTriggerStatement)
+            {
+                isDescendant = true;
+
+                var typedObj = (AlterTriggerStatement)obj;
+                sqlObjects.Add(new SqlObject(typedObj.TriggerObject.Name.BaseIdentifier.Value, SqlObjectType.Table, false, typedObj.TriggerObject.Name.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant));
+                sqlObjects.Add(new SqlObject(typedObj.Name.BaseIdentifier.Value, SqlObjectType.Trigger, false, typedObj.Name.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant));
             }
             else if (!(obj is string) && obj is System.Collections.IEnumerable)
             {
                 foreach (var item in (System.Collections.IEnumerable)obj)
                 {
-                    FindDependencies(item, sqlObjects, scriptFile);
+                    FindDependencies(item, sqlObjects, scriptFile, ref isDescendant);
                 }
             }
         }
