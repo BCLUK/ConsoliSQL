@@ -184,7 +184,7 @@ namespace ConsoliSQL
             }
             else if (obj is CreateTypeTableStatement)
             {
-                //sqlObjects.Add(new SqlObject(((CreateTypeTableStatement)obj).Name.BaseIdentifier.Value, SqlObjectType.TableValueParameter, true, ((CreateTypeTableStatement)obj).Name.BaseIdentifier.FirstTokenIndex, scriptFile));
+                sqlObjects.Add(new SqlObject(((CreateTypeTableStatement)obj).Name.BaseIdentifier.Value, SqlObjectType.TableValueParameter, true, ((CreateTypeTableStatement)obj).Name.BaseIdentifier.FirstTokenIndex, scriptFile));
             }
             else if (obj is CreateTypeUddtStatement)
             {
