@@ -8,7 +8,7 @@ namespace ConsoliSQL.Models
 {
     public class SqlObject
     {
-        public SqlObject(string name, SqlObjectType type, bool isCreate, int nameTokenIndex, ScriptFile file, bool testVar)
+        public SqlObject(string name, SqlObjectType type, bool isCreate, int nameTokenIndex, ScriptFile file, bool isDescendant)
         {
             Name = name;
             Type = type;
@@ -18,7 +18,7 @@ namespace ConsoliSQL.Models
             Ignore = IsTemporaryTable(Name);
             IsSystemObject = SqlSystemObjects.Instance.Objects.Contains(Name); // Good idea to fetch system objects with their type and improve this check..
             IsDrop = false;
-            IsDescendant = testVar;
+            IsDescendant = isDescendant;
         }
 
         public SqlObject(string name, SqlObjectType type, bool isCreate, int nameTokenIndex, ScriptFile file, SqlObject linkObject, bool isDescendant) : this(name, type, isCreate, nameTokenIndex, file, isDescendant)
@@ -26,10 +26,10 @@ namespace ConsoliSQL.Models
             LinkObject = linkObject;
         }
 
-        public SqlObject(string name, SqlObjectType type, bool isCreate, int nameTokenIndex, ScriptFile file, SqlObject linkObject, bool isDrop, TSqlStatement sqlStatement, bool isDescendant) : this(name, type, isCreate, nameTokenIndex, file, linkObject, isDescendant)
+        public SqlObject(string name, SqlObjectType type, bool isCreate, int nameTokenIndex, ScriptFile file, SqlObject linkObject, bool isDrop, TSqlFragment fragment, bool isDescendant) : this(name, type, isCreate, nameTokenIndex, file, linkObject, isDescendant)
         {
             IsDrop = isDrop;
-            SqlStatement = sqlStatement;
+            Fragment = fragment;
         }
 
         public string Name { get; set; }
@@ -41,7 +41,7 @@ namespace ConsoliSQL.Models
         public bool IsSystemObject { get; set; }
         public SqlObject LinkObject { get; set; }
         public bool IsDrop { get; set; }
-        public TSqlStatement SqlStatement { get; set; }
+        public TSqlFragment Fragment { get; set; }
         public bool IsDescendant { get; set; }
 
         private static bool IsTemporaryTable(string name) =>

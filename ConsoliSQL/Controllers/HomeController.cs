@@ -94,12 +94,12 @@ namespace ConsoliSQL.Controllers
                                 if (dependObj.IsDrop && !dependObj.IsDescendant)
                                 {
                                     var statement = new StringBuilder();
-                                    for (var i = dependObj.SqlStatement.FirstTokenIndex; i <= dependObj.SqlStatement.LastTokenIndex; i++)
+                                    for (var i = dependObj.Fragment.FirstTokenIndex; i <= dependObj.Fragment.LastTokenIndex; i++)
                                     {
-                                        statement.Append(dependObj.SqlStatement.ScriptTokenStream[i].Text ?? "");
+                                        statement.Append(dependObj.Fragment.ScriptTokenStream[i].Text ?? "");
                                     }
                                     
-                                    tokenBlacklist.Add(dependObj.SqlStatement.FirstTokenIndex, new DropStatementException(dependObj.SqlStatement.LastTokenIndex - dependObj.SqlStatement.FirstTokenIndex, statement.ToString()));
+                                    tokenBlacklist.Add(dependObj.Fragment.FirstTokenIndex, new DropStatementException(dependObj.Fragment.LastTokenIndex - dependObj.Fragment.FirstTokenIndex, statement.ToString()));
                                 }
                             }
                         }
@@ -181,6 +181,17 @@ namespace ConsoliSQL.Controllers
                             dependencyGraph.AddEdge(new SEdge<ScriptFile>(createObj.File, scriptFile));
                         }
                     }
+                }
+
+                if (model.AllowCircularDependies && !dependencyGraph.IsDirectedAcyclicGraph())
+                {
+                    var parallelEdges = dependencyGraph.Edges.Where(x => dependencyGraph.ContainsEdge(x.Target, x.Source)).ToList();
+                    foreach (var edge in parallelEdges)
+                    {
+                        parallelEdges.RemoveAll(x => x.Source == edge.Target && x.Target == x.Source);
+                    }
+
+                    dependencyGraph.RemoveEdgeIf(x => parallelEdges.Contains(x));
                 }
 
                 if (!dependencyGraph.IsDirectedAcyclicGraph())

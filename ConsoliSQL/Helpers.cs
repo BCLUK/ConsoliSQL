@@ -68,7 +68,7 @@ namespace ConsoliSQL
                 // You can drop multiple objects in one drop statement e.g.: DROP PROCEDURE USP4, USP5, USP6
                 foreach (var table in ((DropTableStatement)obj).Objects)
                 {
-                    sqlObjects.Add(new SqlObject(table.BaseIdentifier.Value, SqlObjectType.Table, false, table.BaseIdentifier.FirstTokenIndex, scriptFile, null, true, (TSqlStatement)obj, isDescendant));
+                    sqlObjects.Add(new SqlObject(table.BaseIdentifier.Value, SqlObjectType.Table, false, table.BaseIdentifier.FirstTokenIndex, scriptFile, null, true, (TSqlFragment)obj, isDescendant));
                 }
             }
             else if (obj is DropFunctionStatement)
@@ -81,33 +81,33 @@ namespace ConsoliSQL
             }
             else if (obj is DropIndexClause)
             {
-                sqlObjects.Add(new SqlObject(((DropIndexClause)obj).Index.Value, SqlObjectType.Index, false, ((DropIndexClause)obj).Index.FirstTokenIndex, scriptFile, null, true, (TSqlStatement)obj, isDescendant));
-                sqlObjects.Add(new SqlObject(((DropIndexClause)obj).Object.BaseIdentifier.Value, SqlObjectType.Table, false, ((DropIndexClause)obj).Object.BaseIdentifier.FirstTokenIndex, scriptFile, null, true, (TSqlStatement)obj, isDescendant));
+                sqlObjects.Add(new SqlObject(((DropIndexClause)obj).Index.Value, SqlObjectType.Index, false, ((DropIndexClause)obj).Index.FirstTokenIndex, scriptFile, null, true, (TSqlFragment)obj, isDescendant));
+                sqlObjects.Add(new SqlObject(((DropIndexClause)obj).Object.BaseIdentifier.Value, SqlObjectType.Table, false, ((DropIndexClause)obj).Object.BaseIdentifier.FirstTokenIndex, scriptFile, null, true, (TSqlFragment)obj, isDescendant));
             }
             else if (obj is BackwardsCompatibleDropIndexClause)
             {
-                sqlObjects.Add(new SqlObject(((BackwardsCompatibleDropIndexClause)obj).Index.ChildIdentifier.Value, SqlObjectType.Index, false, ((BackwardsCompatibleDropIndexClause)obj).Index.ChildIdentifier.FirstTokenIndex, scriptFile, null, true, (TSqlStatement)obj, isDescendant));
-                sqlObjects.Add(new SqlObject(((BackwardsCompatibleDropIndexClause)obj).Index.BaseIdentifier.Value, SqlObjectType.Table, false, ((BackwardsCompatibleDropIndexClause)obj).Index.BaseIdentifier.FirstTokenIndex, scriptFile, null, true, (TSqlStatement)obj, isDescendant));
+                sqlObjects.Add(new SqlObject(((BackwardsCompatibleDropIndexClause)obj).Index.ChildIdentifier.Value, SqlObjectType.Index, false, ((BackwardsCompatibleDropIndexClause)obj).Index.ChildIdentifier.FirstTokenIndex, scriptFile, null, true, (TSqlFragment)obj, isDescendant));
+                sqlObjects.Add(new SqlObject(((BackwardsCompatibleDropIndexClause)obj).Index.BaseIdentifier.Value, SqlObjectType.Table, false, ((BackwardsCompatibleDropIndexClause)obj).Index.BaseIdentifier.FirstTokenIndex, scriptFile, null, true, (TSqlFragment)obj, isDescendant));
             }
             else if (obj is DropProcedureStatement)
             {
                 foreach (var procedure in ((DropProcedureStatement)obj).Objects)
                 {
-                    sqlObjects.Add(new SqlObject(procedure.BaseIdentifier.Value, SqlObjectType.Procedure, false, procedure.BaseIdentifier.FirstTokenIndex, scriptFile, null, true, (TSqlStatement)obj, isDescendant));
+                    sqlObjects.Add(new SqlObject(procedure.BaseIdentifier.Value, SqlObjectType.Procedure, false, procedure.BaseIdentifier.FirstTokenIndex, scriptFile, null, true, (TSqlFragment)obj, isDescendant));
                 }
             }
             else if (obj is DropTriggerStatement)
             {
                 foreach (var trigger in ((DropTriggerStatement)obj).Objects)
                 {
-                    sqlObjects.Add(new SqlObject(trigger.BaseIdentifier.Value, SqlObjectType.Trigger, false, trigger.BaseIdentifier.FirstTokenIndex, scriptFile, null, true, (TSqlStatement)obj, isDescendant));
+                    sqlObjects.Add(new SqlObject(trigger.BaseIdentifier.Value, SqlObjectType.Trigger, false, trigger.BaseIdentifier.FirstTokenIndex, scriptFile, null, true, (TSqlFragment)obj, isDescendant));
                 }
             }
             else if (obj is DropViewStatement)
             {
                 foreach (var view in ((DropViewStatement)obj).Objects)
                 {
-                    sqlObjects.Add(new SqlObject(view.BaseIdentifier.Value, SqlObjectType.View, false, view.BaseIdentifier.FirstTokenIndex, scriptFile, null, true, (TSqlStatement)obj, isDescendant));
+                    sqlObjects.Add(new SqlObject(view.BaseIdentifier.Value, SqlObjectType.View, false, view.BaseIdentifier.FirstTokenIndex, scriptFile, null, true, (TSqlFragment)obj, isDescendant));
                 }
             }
             else if (obj is AlterTableAddTableElementStatement)

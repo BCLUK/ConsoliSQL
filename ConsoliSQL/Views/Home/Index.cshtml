@@ -60,7 +60,12 @@
         <label>@Html.CheckBoxFor(x => x.DropsAtTop, new { id = "drops-at-top-checkbox", disabled = "disabled" }) Script drops at top</label>
         <span class="glyphicon glyphicon-info-sign" data-toggle="tooltip" title="Scripts all the if exists drop statements at the top of the generated script instead of before each individual script."></span>
     </div>
-    
+
+    <div class="checkbox">
+        <label>@Html.CheckBoxFor(x => x.AllowCircularDependies) Allow circular dependencies</label>
+        <span class="glyphicon glyphicon-info-sign" data-toggle="tooltip" title="Ignores errors caused by scripts depending on each other. These scripts will be in no particular order."></span>
+    </div>
+
     <input class="btn btn-default" type="submit" value="Consolidate" />
 }
 
