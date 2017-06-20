@@ -20,7 +20,7 @@ namespace ConsoliSQL.Models
             Creates.Where(x => !x.Ignore && !x.IsSystemObject && !x.IsDescendant);
 
         public IEnumerable<SqlObject> FilteredDependsOn() =>
-            DependsOn.Where(x => !x.Ignore && !x.IsSystemObject && !x.IsDescendant);
+            DependsOn.Where(x => !x.Ignore && !x.IsSystemObject);
 
         public IEnumerable<SqlObject> UniqueFilteredDependsOn(bool isCaseSensitive) =>
             FilteredDependsOn().GroupBy(y => y.Name, isCaseSensitive ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase).Select(y => y.First());

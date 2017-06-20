@@ -92,6 +92,7 @@ namespace ConsoliSQL.Controllers
                         {
                             foreach (var dependObj in scriptFile.DependsOn)
                             {
+                                // Make sure it's not a drop statement inside a procedure, e.g. dropping a temporary table
                                 if (dependObj.IsDrop && !dependObj.IsDescendant)
                                 {
                                     var statement = new StringBuilder();
@@ -134,10 +135,6 @@ namespace ConsoliSQL.Controllers
                                     else if (indiciesToObjects[i].Ignore)
                                     {
                                         span.SetAttributeValue("style", "background-color: #A1887F;");
-                                    }
-                                    else if (indiciesToObjects[i].IsDescendant)
-                                    {
-                                        span.SetAttributeValue("style", "background-color: #7986CB;");
                                     }
                                     else
                                     {
