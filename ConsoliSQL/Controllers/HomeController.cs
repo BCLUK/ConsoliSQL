@@ -238,7 +238,8 @@ namespace ConsoliSQL.Controllers
                     if (model.WrapTransaction)
                     {
                         script.AppendLine("IF @@ERROR <> 0");
-                        script.AppendFormat("RAISERROR('! Error occurred when executing ''{0}''', 20, -1) WITH LOG{1}", scriptFile.FileName, Environment.NewLine);
+                        //script.AppendFormat("RAISERROR('! Error occurred when executing ''{0}''', 20, -1) WITH LOG{1}", scriptFile.FileName, Environment.NewLine);
+                        script.AppendLine("SET NOEXEC ON");
                         script.AppendLine("GO");
                         script.AppendLine();
                     }
@@ -247,6 +248,19 @@ namespace ConsoliSQL.Controllers
                 if (model.WrapTransaction)
                 {
                     script.AppendLine(END_TRAN);
+                    script.AppendLine("GO");
+                    script.AppendLine();
+                    script.AppendLine("IF @@ERROR <> 0");
+                    script.AppendLine("SET NOEXEC ON");
+                    script.AppendLine("GO");
+                    script.AppendLine();
+                    script.AppendLine("DECLARE @Success BIT = 1");
+                    script.AppendLine();
+                    script.AppendLine("SET NOEXEC OFF");
+                    script.AppendLine();
+                    script.AppendLine("IF @Success = 0 AND @@TRANCOUNT > 0");
+                    script.AppendLine("ROLLBACK");
+                    script.AppendLine("GO");
                 }
 
                 var output = script.ToString();

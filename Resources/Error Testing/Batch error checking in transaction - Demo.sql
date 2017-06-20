@@ -1,0 +1,31 @@
+BEGIN TRAN
+
+DECLARE @test decimal = 1 / 0
+
+IF @@ERROR <> 0
+SET NOEXEC ON
+GO
+
+COMMIT
+GO
+
+IF @@ERROR <> 0
+SET NOEXEC ON
+GO
+
+DECLARE @Success BIT = 1
+
+SET NOEXEC OFF
+
+-- @Success will be null if NOEXEC is ON
+
+IF @Success = 1
+BEGIN
+	PRINT 'SUCCESS'
+END
+ELSE BEGIN
+	IF @@TRANCOUNT > 0
+	ROLLBACK
+
+	PRINT 'INSTALL SCRIPT FAILED'
+END
