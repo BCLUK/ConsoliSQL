@@ -72,6 +72,7 @@ namespace ConsoliSQL.Controllers
                             }
                         }
 
+                        // The reason we don't filter out ignored/system/descendant objects here is so we can mark them up in the document view
                         scriptFile.FileName = Path.GetFileName(file.FileName);
                         scriptFile.Creates = sqlObjects.Where(x => x.IsCreate);
                         scriptFile.DependsOn = sqlObjects.Where(x => !x.IsCreate);
@@ -80,7 +81,7 @@ namespace ConsoliSQL.Controllers
                         var sqlStatement = new StringBuilder();
                         if (model.PrependDrops && !model.DropsAtTop)
                         {
-                            foreach (var createObj in scriptFile.Creates.Where(x => !x.Ignore && !x.IsSystemObject))
+                            foreach (var createObj in scriptFile.Creates.Where(x => !x.Ignore && !x.IsSystemObject && !x.IsDescendant))
                             {
                                 sqlStatement.Append(createObj.ScriptDropStatement());
                             }
@@ -104,6 +105,7 @@ namespace ConsoliSQL.Controllers
                             }
                         }
                         
+
                         var indiciesToObjects = scriptFile.Creates.Union(scriptFile.DependsOn).GroupBy(x => x.NameTokenIndex).Select(x => x.First()).ToDictionary(x => x.NameTokenIndex, x => x);
                         for (int i = parseContent.FirstTokenIndex; i <= parseContent.LastTokenIndex; i++)
                         {
@@ -132,6 +134,10 @@ namespace ConsoliSQL.Controllers
                                     else if (indiciesToObjects[i].Ignore)
                                     {
                                         span.SetAttributeValue("style", "background-color: #A1887F;");
+                                    }
+                                    else if (indiciesToObjects[i].IsDescendant)
+                                    {
+                                        span.SetAttributeValue("style", "background-color: #7986CB;");
                                     }
                                     else
                                     {
@@ -174,8 +180,10 @@ namespace ConsoliSQL.Controllers
                 {
                     foreach (var depObj in scriptFile.FilteredDependsOn())
                     {
-                        var createObj = scriptFiles.SelectMany(x => x.Creates.Where(y => y.IsCreate && !y.Ignore && y.Type.IsEqualTo(depObj.Type) && y.Name.Equals(depObj.Name, model.CaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase))).FirstOrDefault();
+                        // Search all script files for create object that isn't ignored (temporary table), is the same type as @depObj, has the same name as @depObj & isn't a descendant object
+                        var createObj = scriptFiles.SelectMany(x => x.Creates.Where(y => y.IsCreate && !y.Ignore && y.Type.IsEqualTo(depObj.Type) && y.Name.Equals(depObj.Name, model.CaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase) && !y.IsDescendant)).FirstOrDefault();
 
+                        // If a script file was found and a link between @scriptFile to @createObj doesn't already exist, and @createObj doesn't equal @scriptFile
                         if (createObj != null && !dependencyGraph.ContainsEdge(createObj.File, scriptFile) && !createObj.File.Equals(scriptFile))
                         {
                             dependencyGraph.AddEdge(new SEdge<ScriptFile>(createObj.File, scriptFile));
@@ -218,7 +226,7 @@ namespace ConsoliSQL.Controllers
                 {
                     foreach (var scriptFile in orderedScripts.Reverse())
                     {
-                        foreach (var createObj in scriptFile.Creates.Where(x => !x.Ignore && !x.IsSystemObject))
+                        foreach (var createObj in scriptFile.Creates.Where(x => !x.Ignore && !x.IsSystemObject && !x.IsDescendant))
                         {
                             script.Append(createObj.ScriptDropStatement());
                         }

@@ -156,30 +156,30 @@ namespace ConsoliSQL
             }
             else if (obj is CreateFunctionStatement)
             {
-                isDescendant = true;
-
                 var returnType = ((CreateFunctionStatement)obj).ReturnType;
                 sqlObjects.Add(new SqlObject(((CreateFunctionStatement)obj).Name.BaseIdentifier.Value, returnType is TableValuedFunctionReturnType ? SqlObjectType.TableValuedFunction : returnType is SelectFunctionReturnType ? SqlObjectType.InlineTableValuedFunction : SqlObjectType.ScalarFunction, true, ((CreateFunctionStatement)obj).Name.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant));
+
+                isDescendant = true;
             }
             else if (obj is CreateProcedureStatement)
             {
-                isDescendant = true;
-
                 sqlObjects.Add(new SqlObject(((CreateProcedureStatement)obj).ProcedureReference.Name.BaseIdentifier.Value, SqlObjectType.Procedure, true, ((CreateProcedureStatement)obj).ProcedureReference.Name.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant));
+
+                isDescendant = true;
             }
             else if (obj is CreateViewStatement)
             {
-                isDescendant = true;
-
                 sqlObjects.Add(new SqlObject(((CreateViewStatement)obj).SchemaObjectName.BaseIdentifier.Value, SqlObjectType.View, true, ((CreateViewStatement)obj).SchemaObjectName.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant));
+
+                isDescendant = true;
             }
             else if (obj is CreateTriggerStatement)
             {
-                isDescendant = true;
-
                 var onTable = new SqlObject(((CreateTriggerStatement)obj).TriggerObject.Name.BaseIdentifier.Value, SqlObjectType.Table, false, ((CreateTriggerStatement)obj).TriggerObject.Name.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant);
                 sqlObjects.Add(onTable);
                 sqlObjects.Add(new SqlObject(((CreateTriggerStatement)obj).Name.BaseIdentifier.Value, SqlObjectType.Trigger, true, ((CreateTriggerStatement)obj).Name.BaseIdentifier.FirstTokenIndex, scriptFile, onTable, isDescendant)); // Added table as link object but not needed to drop trigger
+
+                isDescendant = true;
             }
             else if (obj is CreateIndexStatement)
             {
@@ -210,32 +210,32 @@ namespace ConsoliSQL
             }
             else if (obj is AlterProcedureStatement)
             {
-                isDescendant = true;
-
                 var typedObj = (AlterProcedureStatement)obj;
                 sqlObjects.Add(new SqlObject(typedObj.ProcedureReference.Name.BaseIdentifier.Value, SqlObjectType.Procedure, false, typedObj.ProcedureReference.Name.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant));
+
+                isDescendant = true;
             }
             else if (obj is AlterFunctionStatement)
             {
-                isDescendant = true;
-
                 var typedObj = (AlterFunctionStatement)obj;
                 sqlObjects.Add(new SqlObject(typedObj.Name.BaseIdentifier.Value, typedObj.ReturnType is TableValuedFunctionReturnType ? SqlObjectType.TableValuedFunction : typedObj.ReturnType is SelectFunctionReturnType ? SqlObjectType.InlineTableValuedFunction : SqlObjectType.ScalarFunction, false, typedObj.Name.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant));
+
+                isDescendant = true;
             }
             else if (obj is AlterViewStatement)
             {
-                isDescendant = true;
-
                 var typedObj = (AlterViewStatement)obj;
                 sqlObjects.Add(new SqlObject(typedObj.SchemaObjectName.BaseIdentifier.Value, SqlObjectType.View, false, typedObj.SchemaObjectName.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant));
+
+                isDescendant = true;
             }
             else if (obj is AlterTriggerStatement)
             {
-                isDescendant = true;
-
                 var typedObj = (AlterTriggerStatement)obj;
                 sqlObjects.Add(new SqlObject(typedObj.TriggerObject.Name.BaseIdentifier.Value, SqlObjectType.Table, false, typedObj.TriggerObject.Name.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant));
                 sqlObjects.Add(new SqlObject(typedObj.Name.BaseIdentifier.Value, SqlObjectType.Trigger, false, typedObj.Name.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant));
+
+                isDescendant = true;
             }
             else if (!(obj is string) && obj is System.Collections.IEnumerable)
             {

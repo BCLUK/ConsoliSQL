@@ -17,10 +17,10 @@ namespace ConsoliSQL.Models
         public override string ToString() => FileName;
 
         public IEnumerable<SqlObject> FilteredCreates() =>
-            Creates.Where(x => !x.Ignore && !x.IsSystemObject);
+            Creates.Where(x => !x.Ignore && !x.IsSystemObject && !x.IsDescendant);
 
         public IEnumerable<SqlObject> FilteredDependsOn() =>
-            DependsOn.Where(x => !x.Ignore && !x.IsSystemObject);
+            DependsOn.Where(x => !x.Ignore && !x.IsSystemObject && !x.IsDescendant);
 
         public IEnumerable<SqlObject> UniqueFilteredDependsOn(bool isCaseSensitive) =>
             FilteredDependsOn().GroupBy(y => y.Name, isCaseSensitive ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase).Select(y => y.First());
