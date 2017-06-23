@@ -193,6 +193,9 @@
     <Content Include="Scripts\modernizr-2.8.3.js" />
     <Content Include="Scripts\svg-pan-zoom.js" />
     <Content Include="Scripts\viz.js" />
+    <Content Include="SqlSnippets\ErrorCheckPrefix.sql" />
+    <Content Include="SqlSnippets\ErrorCheckSuffix.sql" />
+    <Content Include="SqlSnippets\ErrorCheck.sql" />
     <Content Include="SqlSystemObjects.txt" />
     <Content Include="Web.config" />
   </ItemGroup>
@@ -210,6 +213,7 @@
     <Compile Include="Models\ScriptFile.cs" />
     <Compile Include="Models\SqlObject.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="SqlSnippets.cs" />
     <Compile Include="SqlSystemObjects.cs" />
     <Compile Include="Startup.cs" />
     <Compile Include="Visualizer.cs" />

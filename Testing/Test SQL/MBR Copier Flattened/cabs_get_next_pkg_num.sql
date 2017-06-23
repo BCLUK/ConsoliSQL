@@ -1,5 +1,7 @@
+IF OBJECT_ID('cabs_get_next_pkg_num', 'P') IS NOT NULL
+DROP PROCEDURE cabs_get_next_pkg_num
+GO
 
-/****** Object:  StoredProcedure [dbo].[cabs_get_next_mbr_num]    Script Date: 31/03/2017 18:08:12 ******/
 SET ANSI_NULLS ON
 GO
 

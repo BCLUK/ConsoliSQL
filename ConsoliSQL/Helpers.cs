@@ -312,19 +312,19 @@ namespace ConsoliSQL
                 case SqlObjectType.Index:
                     statement.AppendFormat("IF INDEXPROPERTY(OBJECT_ID('{1}'), '{2}', 'IndexID') IS NOT NULL{0}", Environment.NewLine, scriptObj.LinkObject.Name, scriptObj.Name);
                     statement.AppendFormat("DROP INDEX {1} ON {2}{0}", Environment.NewLine, scriptObj.Name, scriptObj.LinkObject.Name);
-                    statement.AppendFormat("GO{0}{0}", Environment.NewLine);
+                    statement.AppendFormat("GO{0}", Environment.NewLine);
                     break;
 
                 case SqlObjectType.TableValueParameter:
                     statement.AppendFormat("IF TYPE_ID('{1}') IS NOT NULL{0}", Environment.NewLine, scriptObj.Name);
                     statement.AppendFormat("DROP TYPE {1}{0}", Environment.NewLine, scriptObj.Name);
-                    statement.AppendFormat("GO{0}{0}", Environment.NewLine);
+                    statement.AppendFormat("GO{0}", Environment.NewLine);
                     break;
 
                 default:
                     statement.AppendFormat("IF OBJECT_ID('{1}', '{2}') IS NOT NULL{0}", Environment.NewLine, scriptObj.Name, scriptObj.Type.GetSqlObjectType());
                     statement.AppendFormat("DROP {1} {2}{0}", Environment.NewLine, scriptObj.Type.GetSqlObjectKeyword(), scriptObj.Name);
-                    statement.AppendFormat("GO{0}{0}", Environment.NewLine);
+                    statement.AppendFormat("GO{0}", Environment.NewLine);
                     break;
             }
 
@@ -342,6 +342,53 @@ namespace ConsoliSQL
                 default:
                     return type1.Equals(type2);
             }
+        }
+
+        public static string GetBatchContentWithComments(this IList<TSqlParserToken> tokens, int fileStart, int fileEnd, int batchStart, int batchEnd)
+        {
+            var start = Math.Max(batchStart - 1, fileStart);
+
+            while (start > fileStart)
+            {
+                if (tokens[start].TokenType == TSqlTokenType.Go)
+                {
+                    start++;
+                    break;
+                }
+
+                start--;
+            }
+            
+            while (tokens[start].TokenType == TSqlTokenType.WhiteSpace)
+            {
+                start++;
+            }
+
+            var end = Math.Min(batchEnd + 1, fileEnd);
+
+            while (end < fileEnd)
+            {
+                if (new[] { TSqlTokenType.Go, TSqlTokenType.EndOfFile }.Contains(tokens[end].TokenType))
+                {
+                    end--;
+                    break;
+                }
+
+                end++;
+            }
+
+            while (tokens[end].TokenType == TSqlTokenType.WhiteSpace)
+            {
+                end--;
+            }
+
+            var content = new StringBuilder();
+            for (var i = start; i <= end; i++)
+            {
+                content.Append(tokens[i].Text ?? "");
+            }
+
+            return content.ToString();
         }
     }
 }

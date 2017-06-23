@@ -105,7 +105,7 @@ BEGIN
 				PRINT '* Availability in ' + @RestCode + '|' + @SessCode + ' for ' + CONVERT(VARCHAR, @AI_COVERS) + ' covers' 
 				PRINT '> Creating Booking For ' + @AI_PRIKEY + ' in ' + @RestCode + '|' + @SessCode + ' for ' + CONVERT(VARCHAR, @AI_COVERS) + ' covers'
 				EXEC cabs_book_room_rest @AI_GEDATE, @AI_STARTDATETIME, @AI_ENDDATETIME, @RestCode, @SessCode, @AI_FREF, @AI_COVERS, @AI_TIME, @AI_ENDTIME, @AI_PRIKEY, @BOOKING_REF OUTPUT, @BOOKING_MADE OUTPUT
-				EXEC CABS_MOVE_MBR_GE @AI_FREF, 'R'
+				--EXEC CABS_MOVE_MBR_GE @AI_FREF, 'R'
 			END
 			ELSE
 			IF @AV_OK = 0 BEGIN

@@ -22,11 +22,7 @@ namespace ConsoliSQL.Controllers
         {
             return View();
         }
-
-        const string BEGIN_TRAN = "BEGIN TRAN";
-        const string XACT_ABORT = "SET XACT_ABORT ON";
-        const string END_TRAN = "ROLLBACK";
-
+        
         const string BATCH_SEPERATOR = "GO";
 
         const string WINDOWS_LINE_ENDING = "\r\n";
@@ -78,53 +74,46 @@ namespace ConsoliSQL.Controllers
                         scriptFile.DependsOn = sqlObjects.Where(x => !x.IsCreate);
                         scriptFile.ParseErrors = parseErrors.Select(x => $"{x.Message} Line: {x.Line}");
 
+                        var escapedFilename = Microsoft.SqlServer.Management.SqlParser.Parser.EscapeSequence.SingleQuotedEscapeSequence.Escape(scriptFile.FileName);
                         var sqlStatement = new StringBuilder();
+
                         if (model.PrependDrops && !model.DropsAtTop)
                         {
                             foreach (var createObj in scriptFile.Creates.Where(x => !x.Ignore && !x.IsSystemObject && !x.IsDescendant))
                             {
                                 sqlStatement.Append(createObj.ScriptDropStatement());
-                            }
-                        }
-                        
-                        var tokenBlacklist = new Dictionary<int, DropStatementException>();
-                        if (model.DropsAtTop)
-                        {
-                            foreach (var dependObj in scriptFile.DependsOn)
-                            {
-                                // Make sure it's not a drop statement inside a procedure, e.g. dropping a temporary table
-                                if (dependObj.IsDrop && !dependObj.IsDescendant)
+                                sqlStatement.AppendLine();
+
+                                if (model.ErrorChecking)
                                 {
-                                    var statement = new StringBuilder();
-                                    for (var i = dependObj.Fragment.FirstTokenIndex; i <= dependObj.Fragment.LastTokenIndex; i++)
-                                    {
-                                        statement.Append(dependObj.Fragment.ScriptTokenStream[i].Text ?? "");
-                                    }
-                                    
-                                    tokenBlacklist.Add(dependObj.Fragment.FirstTokenIndex, new DropStatementException(dependObj.Fragment.LastTokenIndex - dependObj.Fragment.FirstTokenIndex, statement.ToString()));
+                                    sqlStatement.Append(SqlSnippets.Instance.Snippets.ErrorCheck);
                                 }
                             }
                         }
                         
-
                         var indiciesToObjects = scriptFile.Creates.Union(scriptFile.DependsOn).GroupBy(x => x.NameTokenIndex).Select(x => x.First()).ToDictionary(x => x.NameTokenIndex, x => x);
-                        for (int i = parseContent.FirstTokenIndex; i <= parseContent.LastTokenIndex; i++)
+                        for (var b = 0; b < parseContent.Batches.Count; b++)
                         {
-                            if (tokenBlacklist.ContainsKey(i))
+                            sqlStatement.AppendFormat("/* File: {1}, Batch: {2} */ GO{0}", Environment.NewLine, escapedFilename.Substring(1, escapedFilename.Length - 2), b + 1);
+
+                            var batch = parseContent.Batches[b];
+                            var content = parseContent.ScriptTokenStream.GetBatchContentWithComments(parseContent.FirstTokenIndex, parseContent.LastTokenIndex, batch.FirstTokenIndex, batch.LastTokenIndex);
+
+                            sqlStatement.AppendLine(content);
+                            sqlStatement.AppendLine(BATCH_SEPERATOR);
+                            sqlStatement.AppendLine();
+
+                            if (model.ErrorChecking)
                             {
-                                var statement = tokenBlacklist[i].Statement;
-                                var escapedStatement = Microsoft.SqlServer.Management.SqlParser.Parser.EscapeSequence.SingleQuotedEscapeSequence.Escape(statement);
-
-                                sqlStatement.AppendFormat("/* {0} */ PRINT {1} - Commented out by ConsoliSQL'{2}", statement, escapedStatement.TrimEnd('\''), Environment.NewLine);
-                                i += tokenBlacklist[i].TokenLength;
-                                continue;
+                                sqlStatement.Append(SqlSnippets.Instance.Snippets.ErrorCheck);
                             }
+                        }
 
+                        for (var i = parseContent.FirstTokenIndex; i <= parseContent.LastTokenIndex; i++)
+                        {
                             var token = parseContent.ScriptTokenStream[i];
                             if (token.Text != null)
                             {
-                                sqlStatement.Append(token.Text);
-
                                 if (indiciesToObjects.ContainsKey(i))
                                 {
                                     var span = html.CreateElement("mark");
@@ -152,14 +141,6 @@ namespace ConsoliSQL.Controllers
                             }
                         }
                         
-                        sqlStatement.AppendLine();
-
-                        if (model.AppendGo)
-                        {
-                            sqlStatement.AppendLine(BATCH_SEPERATOR);
-                            html.DocumentNode.AppendChild(html.CreateTextNode($"{Environment.NewLine}{BATCH_SEPERATOR}"));
-                        }
-
                         scriptFile.Content = sqlStatement.ToString();
                         scriptFile.Overview = html.DocumentNode.OuterHtml;
 
@@ -210,13 +191,9 @@ namespace ConsoliSQL.Controllers
                 var orderedScripts = dependencyGraph.TopologicalSort();
                 var script = new StringBuilder();
 
-                if (model.WrapTransaction)
+                if (model.ErrorChecking)
                 {
-                    script.AppendLine(XACT_ABORT);
-                    script.AppendLine(BATCH_SEPERATOR);
-                    script.AppendLine();
-                    script.AppendLine(BEGIN_TRAN);
-                    script.AppendLine();
+                    script.Append(SqlSnippets.Instance.Snippets.ErrorCheckPrefix);
                 }
                 
                 if (model.DropsAtTop)
@@ -226,49 +203,32 @@ namespace ConsoliSQL.Controllers
                         foreach (var createObj in scriptFile.Creates.Where(x => !x.Ignore && !x.IsSystemObject && !x.IsDescendant))
                         {
                             script.Append(createObj.ScriptDropStatement());
+                            script.AppendLine();
+
+                            if (model.ErrorChecking)
+                            {
+                                script.Append(SqlSnippets.Instance.Snippets.ErrorCheck);
+                            }
                         }
                     }
                 }
 
                 foreach (var scriptFile in orderedScripts)
                 {
-                    script.AppendFormat("-- {1}{0}", Environment.NewLine, scriptFile.FileName);
-                    script.AppendLine(scriptFile.Content);
-
-                    if (model.WrapTransaction)
-                    {
-                        script.AppendLine("IF @@ERROR <> 0");
-                        //script.AppendFormat("RAISERROR('! Error occurred when executing ''{0}''', 20, -1) WITH LOG{1}", scriptFile.FileName, Environment.NewLine);
-                        script.AppendLine("SET NOEXEC ON");
-                        script.AppendLine("GO");
-                        script.AppendLine();
-                    }
+                    script.Append(scriptFile.Content);
                 }
 
-                if (model.WrapTransaction)
+                if (model.ErrorChecking)
                 {
-                    script.AppendLine(END_TRAN);
-                    script.AppendLine("GO");
-                    script.AppendLine();
-                    script.AppendLine("IF @@ERROR <> 0");
-                    script.AppendLine("SET NOEXEC ON");
-                    script.AppendLine("GO");
-                    script.AppendLine();
-                    script.AppendLine("DECLARE @Success BIT = 1");
-                    script.AppendLine();
-                    script.AppendLine("SET NOEXEC OFF");
-                    script.AppendLine();
-                    script.AppendLine("IF @Success = 0 AND @@TRANCOUNT > 0");
-                    script.AppendLine("ROLLBACK");
-                    script.AppendLine("GO");
+                    script.Append(SqlSnippets.Instance.Snippets.ErrorCheckSuffix);
                 }
 
-                var output = script.ToString();
+                var output = script.ToString().TrimEnd();
                 if (model.NormaliseLineEndings)
                 {
                     output = output.Replace(WINDOWS_LINE_ENDING, UNIX_LINE_ENDING).Replace(UNIX_LINE_ENDING, WINDOWS_LINE_ENDING);
                 }
-
+                
                 var filteredScriptFiles = orderedScripts.Select(x =>
                 {
                     x.Creates = x.FilteredCreates().GroupBy(y => y.Type).Select(y => y.OrderBy(z => z.Name)).SelectMany(y => y);

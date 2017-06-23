@@ -25,8 +25,7 @@ GO
 -- =============================================
 CREATE PROCEDURE usp_CABS_REST_BOOK_GE_ForMBR
 	@MbrSysNo VARCHAR(7),
-	@ClassCodes VARCHAR(MAX),
-	@ConvertedRestaurantCount INT OUT
+	@ClassCodes VARCHAR(MAX)
 AS
 BEGIN
 	SET NOCOUNT ON;
@@ -109,30 +108,11 @@ BEGIN
 				PRINT '* Availability in ' + @RestCode + '|' + @SessCode + ' for ' + CONVERT(VARCHAR, @AI_COVERS) + ' covers' 
 				PRINT '> Creating Booking For ' + @AI_PRIKEY + ' in ' + @RestCode + '|' + @SessCode + ' for ' + CONVERT(VARCHAR, @AI_COVERS) + ' covers'
 				EXEC cabs_book_room_rest @AI_GEDATE, @AI_STARTDATETIME, @AI_ENDDATETIME, @RestCode, @SessCode, @AI_FREF, @AI_COVERS, @AI_TIME, @AI_ENDTIME, @AI_PRIKEY, @BOOKING_REF OUTPUT, @BOOKING_MADE OUTPUT
-				EXEC CABS_MOVE_MBR_GE @AI_FREF, 'R'
+				--EXEC CABS_MOVE_MBR_GE @AI_FREF, 'R'
 
-				INSERT INTO #MBR_COPIER_OUTPUT
-				SELECT MBR_SYSNO,
-					MBR_CLIENT,
-					MBR_CONTCT,
-					@ClassCodes,
-					MBR_EVENT,
-					F_REF,
-					CONVERT(VARCHAR(10), F_DAY, 103),
-					ST_DESC,
-					F_START,
-					F_END,
-					F_PAX_ACT,
-					'',
-					''
-				FROM FUNC_FIL
-				LEFT JOIN MBRFILE
-				ON MBR_SYSNO = F_MBR_NO
-				LEFT JOIN SYS_ABBR
-				ON ST_CODE = F_USE
-				WHERE F_REF = @BOOKING_REF
-
-				SET @ConvertedRestaurantCount += 1
+				PRINT '> Deleting extra ' + @AI_PRIKEY
+				DELETE FROM AI_FILE
+				WHERE AI_PRIKEY = @AI_PRIKEY
 			END
 			ELSE
 			IF @AV_OK = 0 BEGIN

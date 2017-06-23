@@ -1,0 +1,4 @@
+﻿IF @@ERROR <> 0
+SET NOEXEC ON
+GO
+

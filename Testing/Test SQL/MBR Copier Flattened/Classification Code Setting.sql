@@ -1,0 +1,1 @@
+EXEC xCABS_CONFIG_WriteString '', 'EnhancedMBRCopier', 'ClassCodesTable', '0', 'S'

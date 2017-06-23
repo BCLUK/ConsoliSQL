@@ -24,7 +24,9 @@ GO
 -- Changes: 16/08/2016: MCB: Added Check for present/future dates only
 -- =============================================
 CREATE PROCEDURE [dbo].[usp_GERestDataForMBR]
-	@MbrSysNo VARCHAR(7)
+	@MbrSysNo VARCHAR(7),
+	@RunDate DATETIME,
+	@RunId INT OUT
 AS
 BEGIN
 	-- SET NOCOUNT ON added to prevent extra result sets from
@@ -39,10 +41,10 @@ BEGIN
 
 	EXEC CABS_Create_GE_Tables
 
-	DECLARE @RUN_ID INT, @RUN_DATE DATETIME 
+	--DECLARE @RUN_ID INT, @RUN_DATE DATETIME 
 	
-	EXEC CABS_GET_NEXT_GE_CONVERT_NUM 'RX', @RUN_ID OUTPUT
-	SET @RUN_DATE = GETDATE()
+	EXEC CABS_GET_NEXT_GE_CONVERT_NUM 'RX', @RunId OUTPUT
+	--SET @RUN_DATE = GETDATE()
 
 	CREATE TABLE 
 	#CodesToInclude
@@ -204,8 +206,8 @@ BEGIN
 		'',
 		0,
 		0,
-		@RUN_ID,
-		@RUN_DATE
+		@RunId,
+		@RunDate
 	FROM #GERestData_Grouped
 
 	RETURN

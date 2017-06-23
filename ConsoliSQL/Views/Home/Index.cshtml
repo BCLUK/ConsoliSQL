@@ -32,15 +32,10 @@
     </div>
 
     <div class="checkbox">
-        <label>@Html.CheckBoxFor(x => x.WrapTransaction) Wrap scripts in a transaction</label>
-        <span class="glyphicon glyphicon-info-sign" data-toggle="tooltip" title="Wraps all the consolidated scripts in a transaction so you can easily rollback on error. Appends an @("@@")ERROR check to each script file."></span>
+        <label>@Html.CheckBoxFor(x => x.ErrorChecking) Add error checking</label>
+        <span class="glyphicon glyphicon-info-sign" data-toggle="tooltip" title="Wraps everything in a transaction and appends an @("@@")ERROR check to every batch. Everything will be rolled back in the event of an error."></span>
     </div>
-
-    <div class="checkbox">
-        <label>@Html.CheckBoxFor(x => x.AppendGo) Append 'GO' to every script</label>
-        <span class="glyphicon glyphicon-info-sign" data-toggle="tooltip" title="Appends 'GO' to every script, does not check if 'GO' already exists."></span>
-    </div>
-
+    
     <div class="checkbox">
         <label>@Html.CheckBoxFor(x => x.NormaliseLineEndings, new { @checked = "checked" }) Normalise line endings</label>
         <span class="glyphicon glyphicon-info-sign" data-toggle="tooltip" title="Makes sure all line endings are the same (\r\n) whilst stopping that pesky SSMS line endings message from popping up!"></span>
@@ -126,12 +121,7 @@
             function iterateIOItems(item) {
                 if (item.isDirectory) {
                     var dirReader = item.createReader();
-                    dirReader.readEntries(function (items) {
-                        for (var i = 0; i < items.length; i++) {
-                            iterateIOItems(items[i]);
-                        }
-
-                    });
+                    readIOItems(dirReader);
                 } else if (item.isFile) {
                     if (/.sql$/.test(item.name.toLowerCase())) {
                         item.file(function (file) {
@@ -139,6 +129,18 @@
                         });
                     }
                 }
+            }
+
+            function readIOItems(dirReader) {
+                dirReader.readEntries(function (items) {
+                    if (items.length > 0) {
+                        for (var i = 0; i < items.length; i++) {
+                            iterateIOItems(items[i]);
+                        }
+
+                        readIOItems(dirReader);
+                    }
+                });
             }
 
             $("#prepend-drops-checkbox").click(function () {

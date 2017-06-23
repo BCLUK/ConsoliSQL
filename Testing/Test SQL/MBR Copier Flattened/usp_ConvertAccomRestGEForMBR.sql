@@ -43,8 +43,10 @@ CREATE PROCEDURE usp_ConvertAccomRestGEForMBR
 	@MbrSysNo VARCHAR(7),
 	@ConvertAccommodation BIT,
 	@ConvertRestaurants BIT,
-	@ConvertedAccommodationCount INT OUT,
-	@ConvertedRestaurantCount INT OUT
+	@AccommCompleteConversions INT OUT,
+	@AccommFailedConversions INT OUT,
+	@RestCompleteConversions INT OUT,
+	@RestFailedConversions INT OUT
 AS
 BEGIN
 	SET NOCOUNT ON
@@ -93,18 +95,16 @@ BEGIN
 		'From ' + @MbrSysNo
 	FROM MBRFILE
 	WHERE MBR_SYSNO = @MbrSysNo
-	
-	SET @ConvertedAccommodationCount = 0
-	SET @ConvertedRestaurantCount = 0
 
 	IF @ConvertAccommodation = 1
 	BEGIN
-		EXEC usp_CABS_ConvertGE_AccomMBR @MbrSysNo, @ClassCodesStr, @ConvertedAccommodationCount OUT
+		--EXEC usp_CABS_ConvertGE_AccomMBR @MbrSysNo, @ClassCodesStr, @AccommCompleteConversions OUT, @AccommPartialConversions OUT, @AccommFailedConversions OUT
+		EXEC usp_ConvertAccommGEToBlockings @MbrSysNo, @ClassCodesStr, @AccommCompleteConversions OUT, @AccommFailedConversions OUT
 	END
 	
 	IF @ConvertRestaurants = 1
 	BEGIN
-		EXEC usp_CABS_ConvertGE_Rest_ForMBR @MbrSysNo, @ClassCodesStr, @ConvertedRestaurantCount OUT
+		EXEC usp_CABS_ConvertGE_Rest_ForMBR @MbrSysNo, @ClassCodesStr, @RestCompleteConversions OUT, @RestFailedConversions OUT
 	END
 
 	-- Only select log if extras were converted
