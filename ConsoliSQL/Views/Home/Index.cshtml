@@ -1,87 +1,120 @@
 ﻿@model ConsoliSQL.Models.Home
 
-@{
-    ViewBag.Title = "Home";
-}
+<div class="container">
+    <div class="row">
+        <section>
+            <div class="wizard">
+                <div class="wizard-inner">
+                    <div class="connecting-line"></div>
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li role="presentation" class="active">
+                            <a href="#step1" data-toggle="tab" aria-controls="step1" role="tab" title="Upload">
+                                <span class="round-tab">
+                                    <i class="glyphicon glyphicon-folder-open"></i>
+                                </span>
+                            </a>
+                        </li>
+                        <li role="presentation" class="disabled">
+                            <a href="#step2" data-toggle="tab" aria-controls="step2" role="tab" title="Options">
+                                <span class="round-tab">
+                                    <i class="glyphicon glyphicon-cog"></i>
+                                </span>
+                            </a>
+                        </li>
+                        <li role="presentation" class="disabled">
+                            <a href="#complete" data-toggle="tab" aria-controls="complete" role="tab" title="Consolidated">
+                                <span class="round-tab">
+                                    <i class="glyphicon glyphicon-ok"></i>
+                                </span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                <form role="form">
+                    <div class="tab-content">
+                        <div class="tab-pane active" role="tabpanel" id="step1">
+                            <h3>Upload</h3>
+                            <p>Upload SQL scripts that you want to be consolidated.</p>
 
-<h2>@ViewBag.Title</h2>
-<hr />
-<h5>Upload SQL scripts and let the tool do the rest of the work...</h5>
+                            <div class="form-group upload-form-group">
+                                <div class="form-inline">
+                                    <div class="form-group">
+                                        <input id="files-input" type="file" class="hide" multiple accept=".sql" />
+                                        <input id="files-button" type="button" class="btn btn-default" value="Upload Files" />
+                                    </div>
+                                    <div class="form-group">
+                                        <input id="directory-input" type="file" class="hide" webkitdirectory directory mozdirectory />
+                                        <input id="directory-button" type="button" class="btn btn-default" value="Upload Directory" />
+                                    </div>
+                                </div>
+                                @Html.ValidationMessageFor(x => x.Files, null, new { @class = "text-danger" })
+                            </div>
 
-@using (Html.BeginForm("Index", "Home", FormMethod.Post, new { enctype = "multipart/form-data" }))
-{
-    <div class="form-group upload-form-group">
-        <div class="form-inline">
-            <div class="form-group">
-                <input id="files-input" type="file" class="hide" multiple accept=".sql" />
-                <input id="files-button" type="button" class="btn btn-default" value="Upload Files" />
+                            <div class="form-group">
+                                <div id="drag-drop-helper" class="drag-drop">
+                                    <h4 id="drag-drop-helper-text">Drop files here...</h4>
+                                    <div class="row" id="files"></div>
+                                </div>
+                            </div>
+
+                            <ul class="list-inline pull-right">
+                                <li><button type="button" class="btn btn-primary next-step">Next</button></li>
+                            </ul>
+
+                            <br />
+                            <br />
+                            <small>Chrome seems to have a file limit of 750, not sure if it's Chrome specific as Edge seemed to give up with less than 750 files.</small>
+                        </div>
+                        <div class="tab-pane" role="tabpanel" id="step2">
+                            <h3>Options</h3>
+                            <p>Customise your consolidated script file.</p>
+                            <div class="checkbox">
+                                <label>@Html.CheckBoxFor(x => x.ErrorChecking) Add error checking</label>
+                                <span class="glyphicon glyphicon-info-sign" data-toggle="tooltip" title="Wraps everything in a transaction and appends an @("@@")ERROR check to every batch. Everything will be rolled back in the event of an error."></span>
+                            </div>
+
+                            <div class="checkbox">
+                                <label>@Html.CheckBoxFor(x => x.NormaliseLineEndings, new { @checked = "checked" }) Normalise line endings</label>
+                                <span class="glyphicon glyphicon-info-sign" data-toggle="tooltip" title="Makes sure all line endings are the same (\r\n) whilst stopping that pesky SSMS line endings message from popping up!"></span>
+                            </div>
+
+                            <div class="checkbox">
+                                <label>@Html.CheckBoxFor(x => x.CaseSensitive) Case sensitive</label>
+                                <span class="glyphicon glyphicon-info-sign" data-toggle="tooltip" title="EXAMPLE_OBJECT and example_object will be seen as two unique objects."></span>
+                            </div>
+
+                            <div class="checkbox">
+                                <label>@Html.CheckBoxFor(x => x.PrependDrops, new { id = "prepend-drops-checkbox" }) Prepend IF EXISTS DROP</label>
+                                <span class="glyphicon glyphicon-info-sign" data-toggle="tooltip" title="Prepends an existance/drop check to every script that creates an object."></span>
+                            </div>
+
+                            <div class="checkbox">
+                                <label>@Html.CheckBoxFor(x => x.DropsAtTop, new { id = "drops-at-top-checkbox", disabled = "disabled" }) Script drops at top</label>
+                                <span class="glyphicon glyphicon-info-sign" data-toggle="tooltip" title="Scripts all the if exists drop statements at the top of the generated script instead of before each individual script."></span>
+                            </div>
+
+                            <div class="checkbox">
+                                <label>@Html.CheckBoxFor(x => x.AllowCircularDependies) Allow circular dependencies</label>
+                                <span class="glyphicon glyphicon-info-sign" data-toggle="tooltip" title="Ignores errors caused by scripts depending on each other. These scripts will be in no particular order."></span>
+                            </div>
+                            <ul class="list-inline pull-right">
+                                <li><button type="button" class="btn btn-default prev-step">Previous</button></li>
+                                <li><input class="btn btn-primary" type="submit" value="Consolidate" /></li>
+                            </ul>
+                        </div>
+                        <div class="tab-pane" role="tabpanel" id="complete"></div>
+                        <div class="clearfix"></div>
+                    </div>
+                </form>
             </div>
-            <div class="form-group">
-                <input id="directory-input" type="file" class="hide" webkitdirectory directory mozdirectory />
-                <input id="directory-button" type="button" class="btn btn-default" value="Upload Directory" />
-            </div>
-        </div>
-        @Html.ValidationMessageFor(x => x.Files, null, new { @class = "text-danger" })
+        </section>
     </div>
-
-    <div class="form-group">
-        <div id="drag-drop-helper" class="drag-drop">
-            <h4 id="drag-drop-helper-text">Drop files here...</h4>
-            <div class="row" id="files"></div>
-        </div>
-    </div>
-
-    <div class="checkbox">
-        <label>@Html.CheckBoxFor(x => x.ErrorChecking) Add error checking</label>
-        <span class="glyphicon glyphicon-info-sign" data-toggle="tooltip" title="Wraps everything in a transaction and appends an @("@@")ERROR check to every batch. Everything will be rolled back in the event of an error."></span>
-    </div>
-    
-    <div class="checkbox">
-        <label>@Html.CheckBoxFor(x => x.NormaliseLineEndings, new { @checked = "checked" }) Normalise line endings</label>
-        <span class="glyphicon glyphicon-info-sign" data-toggle="tooltip" title="Makes sure all line endings are the same (\r\n) whilst stopping that pesky SSMS line endings message from popping up!"></span>
-    </div>
-
-    <div class="checkbox">
-        <label>@Html.CheckBoxFor(x => x.CaseSensitive) Case sensitive</label>
-        <span class="glyphicon glyphicon-info-sign" data-toggle="tooltip" title="EXAMPLE_OBJECT and example_object will be seen as two unique objects."></span>
-    </div>
-
-    <div class="checkbox">
-        <label>@Html.CheckBoxFor(x => x.PrependDrops, new { id = "prepend-drops-checkbox" }) Prepend IF EXISTS DROP</label>
-        <span class="glyphicon glyphicon-info-sign" data-toggle="tooltip" title="Prepends an existance/drop check to every script that creates an object."></span>
-    </div>
-
-    <div class="checkbox">
-        <label>@Html.CheckBoxFor(x => x.DropsAtTop, new { id = "drops-at-top-checkbox", disabled = "disabled" }) Script drops at top</label>
-        <span class="glyphicon glyphicon-info-sign" data-toggle="tooltip" title="Scripts all the if exists drop statements at the top of the generated script instead of before each individual script."></span>
-    </div>
-
-    <div class="checkbox">
-        <label>@Html.CheckBoxFor(x => x.AllowCircularDependies) Allow circular dependencies</label>
-        <span class="glyphicon glyphicon-info-sign" data-toggle="tooltip" title="Ignores errors caused by scripts depending on each other. These scripts will be in no particular order."></span>
-    </div>
-
-    <input class="btn btn-default" type="submit" value="Consolidate" />
-}
-
-<hr />
-
-<p>Known issues...</p>
-
-<ul>
-    <li>
-        Doesn't take schemas into consideration.
-        <span class="glyphicon glyphicon-info-sign" data-toggle="tooltip" title="For example: creating a view named 'sysobjects' on the 'dbo' schema will be excluded because a system view with the same name exists on the 'sys' schema."></span>
-    </li>
-    <li>
-        Common table expressions are seen as dependant objects.
-        <span class="glyphicon glyphicon-info-sign" data-toggle="tooltip" title="Will only be a problem if you have a table with the same name as a common table expression."></span>
-    </li>
-</ul>
+</div>
 
 @section scripts {
     <script src="~/Scripts/jquery.signalR-2.2.2.min.js"></script>
     <script src="~/signalr/hubs"></script>
+    <script src="~/Scripts/form-wizard.min.js"></script>
 
     <script>
         $(function () {
@@ -216,9 +249,14 @@
                     addFile(files[i]);
                 }
             }
+            
+            $(this)[0].value = null;
         });
 
-        $("form").submit(function () {
+        $("form").submit(function (e) {
+            e.stopPropagation();
+            e.preventDefault();
+
             var formData = new FormData(this);
 
             for (var i = 0; i < selectedFiles.length; i++) {
@@ -235,7 +273,7 @@
                             .addClass("modal-body")
                             .append($("<h1>")
                                 .addClass("text-center")
-                                .html("Consolidating"))
+                                .html("Uploading"))
                             .append($("<hr>"))
                             .append($("<p>")
                                 .addClass("text-center file-name"))
@@ -247,6 +285,16 @@
                     $(this).remove();
                 });
 
+            var $progBar = modal.find(".progress-bar"),
+                $title = modal.find("h1"),
+                $status = modal.find(".file-name");
+
+            progressModal = {
+                $progBar,
+                $title,
+                $status,
+            };
+
             $.ajax({
                 url: "@Url.Action("Index")",
                 type: "POST",
@@ -254,8 +302,34 @@
                 processData: false,
                 contentType: false,
                 success: function (data) {
-                    $(".body-content").html(data);
+                    $(".nav-tabs li:last-child").removeClass("disabled");
+                    $(".nav-tabs li:last-child a").tab("show");
+
+                    $("#complete").html(data);
+
                     modal.modal("hide");
+
+                    progressModal = undefined;
+                },
+                xhr: function () {
+                    var myXhr = $.ajaxSettings.xhr();
+                    if (myXhr.upload) {
+                        myXhr.upload.addEventListener("progress", function (e) {
+                            if (e.lengthComputable) {
+                                var percent = e.loaded / e.total * 100;
+
+                                $progBar.css("width", percent + "%")
+                                    .html(percent.toFixed(2) + "%");
+                            }
+                        });
+
+                        myXhr.addEventListener("loadend", function (e) {
+                            $progBar.empty();
+                            $title.html("Consolidating");
+                            $status.html("Processing...");
+                        });
+                    }
+                    return myXhr;
                 }
             });
 
@@ -264,21 +338,26 @@
                 keyboard: false
             });
 
-            var hub = $.connection.consolidateProgressHub;
-
-            hub.client.reportProgress = function (scriptFile, labelPercent, percent) {
-                var pBar = modal.find(".progress-bar")
-                    .css("width", percent + "%")
-                    .html(labelPercent + "%");
-
-                modal.find(".file-name").html(scriptFile);
-            };
-
-            $.connection.hub.start();
-
             return false;
         });
 
         $("[data-toggle='tooltip']").tooltip();
+
+        var progressModal;
+
+        $(function () {
+            var hub = $.connection.consolidateProgressHub;
+
+            hub.client.reportProgress = function (scriptFile, percent) {
+                if (progressModal != undefined) {
+                    progressModal.$progBar.css("width", percent + "%")
+                        .html(percent.toFixed(2) + "%");
+
+                    progressModal.$status.html(scriptFile);
+                }
+            };
+
+            $.connection.hub.start();
+        });
     </script>
 }

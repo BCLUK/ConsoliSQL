@@ -2,5 +2,9 @@
   {
     "outputFile": "Content/global.css",
     "inputFile": "Content/global.less"
+  },
+  {
+    "outputFile": "Content/form-wizard.css",
+    "inputFile": "Content/form-wizard.less"
   }
 ]

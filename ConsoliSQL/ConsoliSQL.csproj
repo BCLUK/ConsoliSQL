@@ -150,11 +150,19 @@
     <Content Include="Content\bootstrap-theme.min.css" />
     <Content Include="Content\bootstrap.css" />
     <Content Include="Content\bootstrap.min.css" />
+    <None Include="bundleconfig.json" />
     <None Include="compilerconfig.json" />
     <None Include="compilerconfig.json.defaults">
       <DependentUpon>compilerconfig.json</DependentUpon>
     </None>
+    <Content Include="Content\form-wizard.css">
+      <DependentUpon>form-wizard.less</DependentUpon>
+    </Content>
+    <Content Include="Content\form-wizard.less" />
     <None Include="Content\global.less" />
+    <Content Include="Content\form-wizard.min.css">
+      <DependentUpon>form-wizard.css</DependentUpon>
+    </Content>
     <Content Include="Content\global.css">
       <DependentUpon>global.less</DependentUpon>
     </Content>
@@ -182,8 +190,12 @@
     <Content Include="Content\bootstrap-theme.css.map" />
     <None Include="Properties\PublishProfiles\PENAPP02.pubxml" />
     <None Include="Scripts\jquery-3.1.1.intellisense.js" />
+    <Content Include="Scripts\form-wizard.js" />
     <Content Include="Scripts\bootstrap.js" />
     <Content Include="Scripts\bootstrap.min.js" />
+    <Content Include="Scripts\form-wizard.min.js">
+      <DependentUpon>form-wizard.js</DependentUpon>
+    </Content>
     <Content Include="Scripts\jquery-3.1.1.js" />
     <Content Include="Scripts\jquery-3.1.1.min.js" />
     <Content Include="Scripts\jquery-3.1.1.slim.js" />
@@ -223,11 +235,11 @@
     <Content Include="packages.config" />
     <Content Include="Views\_ViewStart.cshtml" />
     <Content Include="Views\Shared\_Layout.cshtml" />
-    <Content Include="Views\Home\Index.cshtml" />
     <Content Include="Scripts\jquery-3.1.1.slim.min.map" />
     <Content Include="Scripts\jquery-3.1.1.min.map" />
     <Content Include="Views\Home\Consolidated.cshtml" />
     <Content Include="Views\Home\TopologicalFail.cshtml" />
+    <Content Include="Views\Home\Index.cshtml" />
     <None Include="Web.Debug.config">
       <DependentUpon>Web.config</DependentUpon>
     </None>
