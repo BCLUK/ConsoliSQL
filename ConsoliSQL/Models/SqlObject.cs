@@ -53,11 +53,14 @@ namespace ConsoliSQL.Models
         Table,
         View,
         TableOrView,
+
         Index,
-        //Function,
         ScalarFunction,
+
+        TableFunction,
         TableValuedFunction,
         InlineTableValuedFunction,
+
         Procedure,
         Trigger,
         TableValueParameter

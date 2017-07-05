@@ -31,8 +31,9 @@ else
             case ConsoliSQL.Models.SqlObjectType.TableOrView: return "~/Content/Images/TableOrView.gif";
             case ConsoliSQL.Models.SqlObjectType.Index: return "~/Content/Images/Index.png";
             case ConsoliSQL.Models.SqlObjectType.ScalarFunction: return "~/Content/Images/ScalarFunction.png";
-            case ConsoliSQL.Models.SqlObjectType.TableValuedFunction: return "~/Content/Images/TableFunction.png";
+            case ConsoliSQL.Models.SqlObjectType.TableValuedFunction:
             case ConsoliSQL.Models.SqlObjectType.InlineTableValuedFunction:
+            case ConsoliSQL.Models.SqlObjectType.TableFunction: return "~/Content/Images/TableFunction.png";
             case ConsoliSQL.Models.SqlObjectType.Procedure: return "~/Content/Images/Procedure.png";
             case ConsoliSQL.Models.SqlObjectType.Trigger: return "~/Content/Images/Trigger.png";
 

@@ -48,7 +48,7 @@ namespace ConsoliSQL
             }
             else if (obj is SchemaObjectFunctionTableReference)
             {
-                sqlObjects.Add(new SqlObject(((SchemaObjectFunctionTableReference)obj).SchemaObject.BaseIdentifier.Value, SqlObjectType.TableValuedFunction | SqlObjectType.InlineTableValuedFunction, false, ((SchemaObjectFunctionTableReference)obj).SchemaObject.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant));
+                sqlObjects.Add(new SqlObject(((SchemaObjectFunctionTableReference)obj).SchemaObject.BaseIdentifier.Value, SqlObjectType.TableFunction, false, ((SchemaObjectFunctionTableReference)obj).SchemaObject.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant));
             }
             else if (obj is ExecutableProcedureReference)
             {
@@ -294,7 +294,8 @@ namespace ConsoliSQL
                 case SqlObjectType.Index: return "Index";
                 case SqlObjectType.ScalarFunction: return "Scalar Function";
                 case SqlObjectType.TableValuedFunction:
-                case SqlObjectType.InlineTableValuedFunction: return "Table Function";
+                case SqlObjectType.InlineTableValuedFunction:
+                case SqlObjectType.TableFunction: return "Table Function";
                 case SqlObjectType.Procedure: return "Procedure";
                 case SqlObjectType.Trigger: return "Trigger";
                 case SqlObjectType.TableValueParameter: return "Table Value Parameter";
@@ -337,7 +338,13 @@ namespace ConsoliSQL
             {
                 case SqlObjectType.Table:
                 case SqlObjectType.View:
+                case SqlObjectType.TableOrView:
                     return new[] { SqlObjectType.Table, SqlObjectType.View, SqlObjectType.TableOrView }.Contains(type2);
+
+                case SqlObjectType.InlineTableValuedFunction:
+                case SqlObjectType.TableValuedFunction:
+                case SqlObjectType.TableFunction:
+                    return new[] { SqlObjectType.InlineTableValuedFunction, SqlObjectType.TableValuedFunction, SqlObjectType.TableFunction }.Contains(type2);
 
                 default:
                     return type1.Equals(type2);

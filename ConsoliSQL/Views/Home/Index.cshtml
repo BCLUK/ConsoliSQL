@@ -263,7 +263,7 @@
                 formData.append("Files", selectedFiles[i]);
             }
 
-            var modal = $("<div>")
+            var $modal = $("<div>")
                 .addClass("modal fade")
                 .append($("<div>")
                     .addClass("modal-dialog")
@@ -285,9 +285,9 @@
                     $(this).remove();
                 });
 
-            var $progBar = modal.find(".progress-bar"),
-                $title = modal.find("h1"),
-                $status = modal.find(".file-name");
+            var $progBar = $modal.find(".progress-bar"),
+                $title = $modal.find("h1"),
+                $status = $modal.find(".file-name");
 
             progressModal = {
                 $progBar,
@@ -307,9 +307,23 @@
 
                     $("#complete").html(data);
 
-                    modal.modal("hide");
+                    $modal.modal("hide");
 
                     progressModal = undefined;
+                },
+                error: function () {
+                    $modal.find(".modal-body")
+                        .empty()
+                        .append($("<h1>")
+                            .addClass("text-center")
+                            .html("Oh snap!"))
+                        .append($("<hr>"))
+                        .append($("<h4>")
+                            .html("An error has occurred which has prevented the consolidation of your scripts.<br/><br/>Please try again..."));
+
+                    setTimeout(function () {
+                        $modal.modal("hide");
+                    }, 5000);
                 },
                 xhr: function () {
                     var myXhr = $.ajaxSettings.xhr();
@@ -320,20 +334,26 @@
 
                                 $progBar.css("width", percent + "%")
                                     .html(percent.toFixed(2) + "%");
+
+                                if (percent == 100) {
+                                    $progBar.empty();
+                                    $title.html("Consolidating");
+                                    $status.html("Processing...");
+                                }
                             }
                         });
 
-                        myXhr.addEventListener("loadend", function (e) {
-                            $progBar.empty();
-                            $title.html("Consolidating");
-                            $status.html("Processing...");
-                        });
+                        //myXhr.addEventListener("loadend", function (e) {
+                        //    $progBar.empty();
+                        //    $title.html("Consolidating");
+                        //    $status.html("Processing...");
+                        //});
                     }
                     return myXhr;
                 }
             });
 
-            modal.modal({
+            $modal.modal({
                 backdrop: "static",
                 keyboard: false
             });
