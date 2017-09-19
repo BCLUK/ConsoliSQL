@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -20,6 +21,7 @@ namespace ConsoliSQL.Controllers
     {
         public ActionResult Index()
         {
+            Log("visit.csv");
             return View();
         }
         
@@ -30,6 +32,8 @@ namespace ConsoliSQL.Controllers
 
         const string ERROR_MESSAGE_FILES = "No files have been selected.";
 
+        const string LOG_DIR = "Logs";
+
         [HttpPost]
         public ActionResult Index(Home model)
         {
@@ -37,7 +41,7 @@ namespace ConsoliSQL.Controllers
             {
                 ModelState.AddModelError("Files", ERROR_MESSAGE_FILES);
             }
-
+            
             if (ModelState.IsValid)
             {
                 var scriptFiles = new HashSet<ScriptFile>();
@@ -270,11 +274,36 @@ namespace ConsoliSQL.Controllers
                     x.DependsOn = x.ParseErrors.Any() ? new SqlObject[0] : x.UniqueFilteredDependsOn(model.CaseSensitive).GroupBy(y => y.Type).Select(y => y.OrderBy(z => z.Name)).SelectMany(y => y);
                     return x;
                 });
-                
+
+                Log("consolidate.csv", ModelState.IsValid, model.ErrorChecking, model.NormaliseLineEndings, model.CaseSensitive, model.PrependDrops, model.DropsAtTop, model.AllowCircularDependies, filesCount);
+
                 return PartialView("Consolidated", new Consolidated { Script = output, DotNotation = dot, ScriptFiles = filteredScriptFiles });
             }
 
             return View();
+        }
+
+        private void Log(string file, params object[] messages)
+        {
+            var workingDir = Path.Combine(Server.MapPath("~"), LOG_DIR);
+            if (!Directory.Exists(workingDir))
+            {
+                Directory.CreateDirectory(workingDir);
+            }
+
+            var logPath = Path.Combine(workingDir, file);
+            var messageParts = new List<object> { DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), User.Identity.Name, Request.UserHostAddress };
+
+            try
+            {
+                messageParts.Add(Dns.GetHostEntry(Request.UserHostAddress).HostName);
+            }
+            catch
+            {
+                messageParts.Add("");
+            }
+
+            System.IO.File.AppendAllLines(logPath, new[] { string.Join(",", messageParts.Concat(messages)) });
         }
     }
 }
