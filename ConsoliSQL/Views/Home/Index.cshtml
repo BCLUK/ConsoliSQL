@@ -60,16 +60,12 @@
                             <ul class="list-inline pull-right">
                                 <li><button type="button" class="btn btn-primary next-step">Next</button></li>
                             </ul>
-
-                            <br />
-                            <br />
-                            <small>Chrome seems to have a file limit of 750, not sure if it's Chrome specific as Edge seemed to give up with less than 750 files.</small>
                         </div>
                         <div class="tab-pane" role="tabpanel" id="step2">
                             <h3>Options</h3>
                             <p>Customise your consolidated script file.</p>
                             <div class="checkbox">
-                                <label>@Html.CheckBoxFor(x => x.ErrorChecking) Add error checking</label>
+                                <label>@Html.CheckBoxFor(x => x.ErrorChecking, new { @checked = "checked" }) Add error checking</label>
                                 <span class="glyphicon glyphicon-info-sign" data-toggle="tooltip" title="Wraps everything in a transaction and appends an @("@@")ERROR check to every batch. Everything will be rolled back in the event of an error."></span>
                             </div>
 

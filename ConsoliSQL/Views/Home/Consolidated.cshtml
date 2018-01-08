@@ -144,14 +144,14 @@ else
 
     if (window.navigator.msSaveOrOpenBlob) {
         $("#sql-download-link").click(function () {
-            window.navigator.msSaveOrOpenBlob(blob, "EasySQL " + GetDateTime() + ".sql");
+            window.navigator.msSaveOrOpenBlob(blob, "ConsoliSQL " + GetDateTime() + ".sql");
         });
     } else {
         var urlObject = window.URL.createObjectURL(blob);
 
         $("#sql-download-link")
             .attr("href", urlObject)
-            .attr("download", "EasySQL " + GetDateTime() + ".sql");
+            .attr("download", "ConsoliSQL " + GetDateTime() + ".sql");
     }
 
     $("[data-toggle='tooltip']").tooltip();
