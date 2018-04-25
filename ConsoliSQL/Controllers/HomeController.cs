@@ -198,7 +198,22 @@ namespace ConsoliSQL.Controllers
                     foreach (var depObj in scriptFile.FilteredDependsOn())
                     {
                         // Search all script files for create object that isn't ignored (temporary table), is the same type as @depObj, has the same name as @depObj & isn't a descendant object
-                        var createObj = scriptFilesNoErrors.SelectMany(x => x.Creates.Where(y => y.IsCreate && !y.Ignore && y.Type.IsEqualTo(depObj.Type) && y.Name.Equals(depObj.Name, model.CaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase) && !y.IsDescendant)).FirstOrDefault();
+                        var createObj = scriptFilesNoErrors.SelectMany(x => x.Creates.Where(y => y.IsCreate && !y.Ignore && y.Type.IsEqualTo(depObj.Type) 
+                        
+                        //&& y.Name.Equals(depObj.Name, model.CaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase)
+                        
+                        &&
+                        (
+                            y.Type == SqlObjectType.Column ?
+                                y.Name.Equals(depObj.Name, model.CaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase)
+                                && y.LinkObject.Name.Equals(depObj.LinkObject.Name, model.CaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase)
+                                :
+                                y.Name.Equals(depObj.Name, model.CaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase)
+                        )
+
+                        && !y.IsDescendant
+                        
+                        )).FirstOrDefault();
 
                         // If a script file was found and a link between @scriptFile to @createObj doesn't already exist, and @createObj doesn't equal @scriptFile
                         if (createObj != null && !dependencyGraph.ContainsEdge(createObj.File, scriptFile) && !createObj.File.Equals(scriptFile))

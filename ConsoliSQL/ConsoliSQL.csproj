@@ -24,6 +24,7 @@
     <UseGlobalApplicationHostFile />
     <NuGetPackageImportStamp>
     </NuGetPackageImportStamp>
+    <Use64BitIISExpress />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -169,6 +170,7 @@
     <Content Include="Content\global.min.css">
       <DependentUpon>global.css</DependentUpon>
     </Content>
+    <Content Include="Content\Images\Column.png" />
     <Content Include="Content\Images\Index.png" />
     <Content Include="Content\Images\Key.png" />
     <Content Include="Content\Images\Procedure.png" />
@@ -224,6 +226,7 @@
     <Compile Include="Models\Consolidated.cs" />
     <Compile Include="Models\ScriptFile.cs" />
     <Compile Include="Models\SqlObject.cs" />
+    <Compile Include="Models\SqlObjectType.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SqlSnippets.cs" />
     <Compile Include="SqlSystemObjects.cs" />

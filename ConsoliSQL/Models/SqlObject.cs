@@ -44,25 +44,9 @@ namespace ConsoliSQL.Models
         public TSqlFragment Fragment { get; set; }
         public bool IsDescendant { get; set; }
 
+        public SqlObject ParentObj { get; set; }
+
         private static bool IsTemporaryTable(string name) =>
             System.Text.RegularExpressions.Regex.IsMatch(name, "^##?");
-    }
-
-    public enum SqlObjectType
-    {
-        Table,
-        View,
-        TableOrView,
-
-        Index,
-        ScalarFunction,
-
-        TableFunction,
-        TableValuedFunction,
-        InlineTableValuedFunction,
-
-        Procedure,
-        Trigger,
-        TableValueParameter
     }
 }

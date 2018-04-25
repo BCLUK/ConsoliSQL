@@ -36,6 +36,7 @@ else
             case ConsoliSQL.Models.SqlObjectType.TableFunction: return "~/Content/Images/TableFunction.png";
             case ConsoliSQL.Models.SqlObjectType.Procedure: return "~/Content/Images/Procedure.png";
             case ConsoliSQL.Models.SqlObjectType.Trigger: return "~/Content/Images/Trigger.png";
+            case ConsoliSQL.Models.SqlObjectType.Column: return "~/Content/Images/Column.png";
 
             default: return "";
         }
@@ -62,7 +63,9 @@ else
                                     @foreach (var createObject in scriptFile.Creates)
                                     {
                                         var createObjectName = createObject.Type.GetSqlObjectName();
-                                        <li><img src="@Url.Content(GetSqlObjectIconPath(createObject.Type))" alt="@createObjectName" data-toggle="tooltip" title="@createObjectName" /> @createObject.Name</li>
+                                        var iconPath = GetSqlObjectIconPath(createObject.Type);
+                                        var imgSrc = string.IsNullOrEmpty(iconPath) ? "" : @Url.Content(iconPath);
+                                        <li><img src="@imgSrc" alt="@createObjectName" data-toggle="tooltip" title="@createObjectName" /> @createObject.Name</li>
                                     }
                                 </ul>
                             </li>
@@ -75,7 +78,9 @@ else
                                     @foreach (var dependsObject in scriptFile.DependsOn)
                                     {
                                         var dependsObjectName = dependsObject.Type.GetSqlObjectName();
-                                        <li><img src="@Url.Content(GetSqlObjectIconPath(dependsObject.Type))" alt="@dependsObjectName" data-toggle="tooltip" title="@dependsObjectName" /> @dependsObject.Name</li>
+                                        var iconPath = GetSqlObjectIconPath(dependsObject.Type);
+                                        var imgSrc = string.IsNullOrEmpty(iconPath) ? "" : @Url.Content(iconPath);
+                                        <li><img src="@imgSrc" alt="@dependsObjectName" data-toggle="tooltip" title="@dependsObjectName" /> @dependsObject.Name</li>
                                     }
                                 </ul>
                             </li>

@@ -110,13 +110,21 @@ namespace ConsoliSQL
                     sqlObjects.Add(new SqlObject(view.BaseIdentifier.Value, SqlObjectType.View, false, view.BaseIdentifier.FirstTokenIndex, scriptFile, null, true, (TSqlFragment)obj, isDescendant));
                 }
             }
-            else if (obj is AlterTableAddTableElementStatement)
+            else if (obj is AlterTableAddTableElementStatement tObj)
             {
-                sqlObjects.Add(new SqlObject(((AlterTableAddTableElementStatement)obj).SchemaObjectName.BaseIdentifier.Value, SqlObjectType.Table, false, ((AlterTableAddTableElementStatement)obj).SchemaObjectName.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant));
+                var table = new SqlObject(tObj.SchemaObjectName.BaseIdentifier.Value, SqlObjectType.Table, false, tObj.SchemaObjectName.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant);
+                sqlObjects.Add(table);
+
+                foreach (var col in tObj.Definition.ColumnDefinitions)
+                {
+                    sqlObjects.Add(new SqlObject(col.ColumnIdentifier.Value, SqlObjectType.Column, true, col.ColumnIdentifier.FirstTokenIndex, scriptFile, table, isDescendant));
+                }
             }
             else if (obj is AlterTableAlterColumnStatement)
             {
-                sqlObjects.Add(new SqlObject(((AlterTableAlterColumnStatement)obj).SchemaObjectName.BaseIdentifier.Value, SqlObjectType.Table, false, ((AlterTableAlterColumnStatement)obj).SchemaObjectName.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant));
+                var table = new SqlObject(((AlterTableAlterColumnStatement)obj).SchemaObjectName.BaseIdentifier.Value, SqlObjectType.Table, false, ((AlterTableAlterColumnStatement)obj).SchemaObjectName.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant);
+                sqlObjects.Add(table);
+                sqlObjects.Add(new SqlObject(((AlterTableAlterColumnStatement)obj).ColumnIdentifier.Value, SqlObjectType.Column, false, ((AlterTableAlterColumnStatement)obj).ColumnIdentifier.FirstTokenIndex, scriptFile, table, isDescendant));
             }
             else if (obj is AlterTableAlterIndexStatement)
             {
@@ -237,6 +245,20 @@ namespace ConsoliSQL
 
                 isDescendant = true;
             }
+            else if (obj is QuerySpecification)
+            {
+                var typedObj = (QuerySpecification)obj;
+
+                //typedObj.FromClause.tab
+
+                // Stuck cause theres multiple table references, I give up
+
+                //var name = typedObj.MultiPartIdentifier.Identifiers.Last();
+                //sqlObjects.Add(new SqlObject(name.Value, SqlObjectType.Column, false, name.FirstTokenIndex, scriptFile, , isDescendant));
+
+                //sqlObjects.Add(new SqlObject(typedObj.MultiPartIdentifier.Identifiers, SqlObjectType.Table, false, typedObj.TriggerObject.Name.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant));
+
+            }
             else if (!(obj is string) && obj is System.Collections.IEnumerable)
             {
                 foreach (var item in (System.Collections.IEnumerable)obj)
@@ -299,6 +321,7 @@ namespace ConsoliSQL
                 case SqlObjectType.Procedure: return "Procedure";
                 case SqlObjectType.Trigger: return "Trigger";
                 case SqlObjectType.TableValueParameter: return "Table Value Parameter";
+                case SqlObjectType.Column: return "Column";
 
                 default: return "";
             }
