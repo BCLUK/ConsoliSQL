@@ -50,7 +50,7 @@ namespace ConsoliSQL.Controllers
 
                 foreach (var file in model.Files)
                 {
-                    Hubs.ConsolidateProgressHub.ReportProgress(User.Identity.Name, Path.GetFileName(file.FileName), (double)++count / filesCount * 100);
+                    Hubs.ConsolidateProgressHub.ReportProgress(User.Identity.Name, "Parsing<br>" + Path.GetFileName(file.FileName), (double)++count / filesCount * 100);
 
                     var sqlObjects = new HashSet<SqlObject>();
                     var scriptFile = new ScriptFile();
@@ -63,7 +63,7 @@ namespace ConsoliSQL.Controllers
                         var parser = new TSql140Parser(false);
                         IList<ParseError> parseErrors;
                         var parseContent = (TSqlScript)parser.Parse(stringReader, out parseErrors);
-
+                        
                         scriptFile.FileName = Path.GetFileName(file.FileName);
                         scriptFile.ParseErrors = parseErrors.Select(x => $"{x.Message} Line: {x.Line}");
 
@@ -74,7 +74,7 @@ namespace ConsoliSQL.Controllers
                                 foreach (var statement in batch.Statements)
                                 {
                                     var isDescendant = false;
-                                    Helpers.FindDependencies(statement, sqlObjects, scriptFile, ref isDescendant);
+                                    Helpers.FindDependencies(statement, sqlObjects, scriptFile, ref isDescendant, null, model.ColumnDependencies);
                                 }
                             }
 
@@ -185,35 +185,36 @@ namespace ConsoliSQL.Controllers
                     }
                 }
 
-                var scriptFilesNoErrors = scriptFiles.Where(x => !x.ParseErrors.Any());
+                Hubs.ConsolidateProgressHub.ReportProgress(User.Identity.Name, "Linking scripts", 100);
 
+                var scriptFilesNoErrors = scriptFiles.Where(x => !x.ParseErrors.Any());
+                
                 var dependencyGraph = new AdjacencyGraph<ScriptFile, SEdge<ScriptFile>>();
                 foreach (var scriptFile in scriptFiles)
                 {
                     dependencyGraph.AddVertex(scriptFile);
                 }
 
+                var scriptFilesCount = scriptFilesNoErrors.Count();
+                var linkingProgress = 0;
+
                 foreach (var scriptFile in scriptFilesNoErrors)
                 {
                     foreach (var depObj in scriptFile.FilteredDependsOn())
                     {
                         // Search all script files for create object that isn't ignored (temporary table), is the same type as @depObj, has the same name as @depObj & isn't a descendant object
-                        var createObj = scriptFilesNoErrors.SelectMany(x => x.Creates.Where(y => y.IsCreate && !y.Ignore && y.Type.IsEqualTo(depObj.Type) 
-                        
-                        //&& y.Name.Equals(depObj.Name, model.CaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase)
-                        
-                        &&
-                        (
-                            y.Type == SqlObjectType.Column ?
-                                y.Name.Equals(depObj.Name, model.CaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase)
-                                && y.LinkObject.Name.Equals(depObj.LinkObject.Name, model.CaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase)
-                                :
-                                y.Name.Equals(depObj.Name, model.CaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase)
-                        )
+                        //var createObj = scriptFilesNoErrors.SelectMany(x => x.Creates.Where(y => y.IsCreate && !y.Ignore && y.Type.IsEqualTo(depObj.Type)
+                        //&&
+                        //(
+                        //    model.ColumnDependencies && y.Type == SqlObjectType.Column ?
+                        //        y.Name.Equals(depObj.Name, model.CaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase)
+                        //        && ((IEnumerable<string>)depObj.Data).Contains(y.LinkObject.Name, model.CaseSensitive ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase) :
 
-                        && !y.IsDescendant
-                        
-                        )).FirstOrDefault();
+                        //        y.Name.Equals(depObj.Name, model.CaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase)
+                        //)
+                        //&& !y.IsDescendant)).FirstOrDefault();
+
+                        var createObj = Helpers.GetCreateObject(model.ColumnDependencies, model.CaseSensitive, scriptFilesNoErrors, depObj);
 
                         // If a script file was found and a link between @scriptFile to @createObj doesn't already exist, and @createObj doesn't equal @scriptFile
                         if (createObj != null && !dependencyGraph.ContainsEdge(createObj.File, scriptFile) && !createObj.File.Equals(scriptFile))
@@ -221,7 +222,11 @@ namespace ConsoliSQL.Controllers
                             dependencyGraph.AddEdge(new SEdge<ScriptFile>(createObj.File, scriptFile));
                         }
                     }
+                    
+                    Hubs.ConsolidateProgressHub.ReportProgress(User.Identity.Name, "Linking scripts<br>" + Path.GetFileName(scriptFile.FileName), (double)++linkingProgress / scriptFilesCount * 100);
                 }
+
+                Hubs.ConsolidateProgressHub.ReportProgress(User.Identity.Name, "Scripts linked<br>Please wait", 100);
 
                 if (model.AllowCircularDependies && !dependencyGraph.IsDirectedAcyclicGraph())
                 {
@@ -240,7 +245,7 @@ namespace ConsoliSQL.Controllers
 
                     return PartialView("TopologicalFail", parallelEdges);
                 }
-
+                
                 var dot = Visualizer.ToDotNotation(dependencyGraph);
                 var orderedScripts = dependencyGraph.TopologicalSort();
                 var script = new StringBuilder();
@@ -292,12 +297,14 @@ namespace ConsoliSQL.Controllers
 
                 Log("consolidate.csv", ModelState.IsValid, model.ErrorChecking, model.NormaliseLineEndings, model.CaseSensitive, model.PrependDrops, model.DropsAtTop, model.AllowCircularDependies, filesCount);
 
+                Hubs.ConsolidateProgressHub.ReportProgress(User.Identity.Name, "Done", 100);
+
                 return PartialView("Consolidated", new Consolidated { Script = output, DotNotation = dot, ScriptFiles = filteredScriptFiles });
             }
 
             return View();
         }
-
+        
         private void Log(string file, params object[] messages)
         {
             var workingDir = Path.Combine(Server.MapPath("~"), LOG_DIR);

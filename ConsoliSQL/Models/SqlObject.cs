@@ -21,6 +21,11 @@ namespace ConsoliSQL.Models
             IsDescendant = isDescendant;
         }
 
+        public SqlObject(string name, SqlObjectType type, bool isCreate, int nameTokenIndex, ScriptFile file, bool isDescendant, object data) : this(name, type, isCreate, nameTokenIndex, file, isDescendant)
+        {
+            Data = data;
+        }
+
         public SqlObject(string name, SqlObjectType type, bool isCreate, int nameTokenIndex, ScriptFile file, SqlObject linkObject, bool isDescendant) : this(name, type, isCreate, nameTokenIndex, file, isDescendant)
         {
             LinkObject = linkObject;
@@ -43,8 +48,7 @@ namespace ConsoliSQL.Models
         public bool IsDrop { get; set; }
         public TSqlFragment Fragment { get; set; }
         public bool IsDescendant { get; set; }
-
-        public SqlObject ParentObj { get; set; }
+        public object Data { get; set; }
 
         private static bool IsTemporaryTable(string name) =>
             System.Text.RegularExpressions.Regex.IsMatch(name, "^##?");

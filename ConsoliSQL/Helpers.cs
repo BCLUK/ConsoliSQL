@@ -11,9 +11,9 @@ namespace ConsoliSQL
 {
     public static class Helpers
     {
-        public static void FindDependencies(object obj, HashSet<SqlObject> sqlObjects, ScriptFile scriptFile, ref bool isDescendant)
+        public static void FindDependencies(object obj, HashSet<SqlObject> sqlObjects, ScriptFile scriptFile, ref bool isDescendant, object data, bool columnDependencies)
         {
-            GetDependency(obj, sqlObjects, scriptFile, ref isDescendant);
+            var foundData = GetDependency(obj, sqlObjects, scriptFile, ref isDescendant, data, columnDependencies);
             
             foreach (PropertyInfo prop in obj.GetType().GetProperties())
             {
@@ -30,14 +30,14 @@ namespace ConsoliSQL
                         if (propVal != null)
                         {
                             var isDescendantCopy = isDescendant;
-                            FindDependencies(propVal, sqlObjects, scriptFile, ref isDescendantCopy);
+                            FindDependencies(propVal, sqlObjects, scriptFile, ref isDescendantCopy, foundData ?? data, columnDependencies);
                         }
                     }
                 }
             }
         }
         
-        public static void GetDependency(object obj, HashSet<SqlObject> sqlObjects, ScriptFile scriptFile, ref bool isDescendant)
+        public static object GetDependency(object obj, HashSet<SqlObject> sqlObjects, ScriptFile scriptFile, ref bool isDescendant, object data, bool columnDependencies)
         {
             if (obj is FunctionCall)
             {
@@ -115,16 +115,21 @@ namespace ConsoliSQL
                 var table = new SqlObject(tObj.SchemaObjectName.BaseIdentifier.Value, SqlObjectType.Table, false, tObj.SchemaObjectName.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant);
                 sqlObjects.Add(table);
 
-                foreach (var col in tObj.Definition.ColumnDefinitions)
+                if (columnDependencies)
                 {
-                    sqlObjects.Add(new SqlObject(col.ColumnIdentifier.Value, SqlObjectType.Column, true, col.ColumnIdentifier.FirstTokenIndex, scriptFile, table, isDescendant));
+                    foreach (var col in tObj.Definition.ColumnDefinitions)
+                    {
+                        sqlObjects.Add(new SqlObject(col.ColumnIdentifier.Value, SqlObjectType.Column, true, col.ColumnIdentifier.FirstTokenIndex, scriptFile, table, isDescendant));
+                    }
                 }
             }
             else if (obj is AlterTableAlterColumnStatement)
             {
                 var table = new SqlObject(((AlterTableAlterColumnStatement)obj).SchemaObjectName.BaseIdentifier.Value, SqlObjectType.Table, false, ((AlterTableAlterColumnStatement)obj).SchemaObjectName.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant);
                 sqlObjects.Add(table);
-                sqlObjects.Add(new SqlObject(((AlterTableAlterColumnStatement)obj).ColumnIdentifier.Value, SqlObjectType.Column, false, ((AlterTableAlterColumnStatement)obj).ColumnIdentifier.FirstTokenIndex, scriptFile, table, isDescendant));
+
+                if (columnDependencies)
+                    sqlObjects.Add(new SqlObject(((AlterTableAlterColumnStatement)obj).ColumnIdentifier.Value, SqlObjectType.Column, false, ((AlterTableAlterColumnStatement)obj).ColumnIdentifier.FirstTokenIndex, scriptFile, table, isDescendant));
             }
             else if (obj is AlterTableAlterIndexStatement)
             {
@@ -245,27 +250,32 @@ namespace ConsoliSQL
 
                 isDescendant = true;
             }
-            else if (obj is QuerySpecification)
+            else if (obj is QuerySpecification qs)
             {
-                var typedObj = (QuerySpecification)obj;
-
-                //typedObj.FromClause.tab
-
-                // Stuck cause theres multiple table references, I give up
-
-                //var name = typedObj.MultiPartIdentifier.Identifiers.Last();
-                //sqlObjects.Add(new SqlObject(name.Value, SqlObjectType.Column, false, name.FirstTokenIndex, scriptFile, , isDescendant));
-
-                //sqlObjects.Add(new SqlObject(typedObj.MultiPartIdentifier.Identifiers, SqlObjectType.Table, false, typedObj.TriggerObject.Name.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant));
-
+                if (columnDependencies && qs.FromClause != null)
+                {
+                    return qs.FromClause.TableReferences.Cast<NamedTableReference>().Where(x => x.SchemaObject.SchemaIdentifier == null || !x.SchemaObject.SchemaIdentifier.Value.Equals("sys", StringComparison.OrdinalIgnoreCase)).Select(x => x.SchemaObject.BaseIdentifier.Value);
+                }
+            }
+            else if (obj is ColumnReferenceExpression cre)
+            {
+                if (columnDependencies && cre.MultiPartIdentifier != null && data is IEnumerable<string> potentialTableNames)
+                {
+                    foreach (var identifier in cre.MultiPartIdentifier.Identifiers)
+                    {
+                        sqlObjects.Add(new SqlObject(identifier.Value, SqlObjectType.Column, false, identifier.FirstTokenIndex, scriptFile, isDescendant, potentialTableNames));
+                    }
+                }
             }
             else if (!(obj is string) && obj is System.Collections.IEnumerable)
             {
                 foreach (var item in (System.Collections.IEnumerable)obj)
                 {
-                    FindDependencies(item, sqlObjects, scriptFile, ref isDescendant);
+                    FindDependencies(item, sqlObjects, scriptFile, ref isDescendant, data, columnDependencies);
                 }
             }
+
+            return null;
         }
         
         public static string GetSqlObjectType(this SqlObjectType type)
@@ -419,6 +429,45 @@ namespace ConsoliSQL
             }
 
             return content.ToString();
+        }
+
+        public static SqlObject GetCreateObject(bool columnDependencies, bool caseSensitive, IEnumerable<ScriptFile> scriptFiles, SqlObject depObj)
+        {
+            foreach (var scriptFile in scriptFiles)
+            {
+                foreach (var createObj in scriptFile.Creates)
+                {
+                    if (createObj.IsCreate && !createObj.Ignore && createObj.Type.IsEqualTo(depObj.Type) && !createObj.IsDescendant && createObj.Name.Equals(depObj.Name, caseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (columnDependencies && createObj.Type == SqlObjectType.Column)
+                        {
+                            if (((IEnumerable<string>)depObj.Data).Contains(createObj.LinkObject.Name, caseSensitive ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase))
+                            {
+                                return createObj;
+                            }
+                        }
+                        else
+                        {
+                            return createObj;
+                        }
+                    }
+                }
+            }
+
+            return null;
+
+
+            //// Search all script files for create object that isn't ignored (temporary table), is the same type as @depObj, has the same name as @depObj & isn't a descendant object
+            //var createObj = scriptFilesNoErrors.SelectMany(x => x.Creates.Where(y => y.IsCreate && !y.Ignore && y.Type.IsEqualTo(depObj.Type)
+            //&&
+            //(
+            //    model.ColumnDependencies && y.Type == SqlObjectType.Column ?
+            //        y.Name.Equals(depObj.Name, model.CaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase)
+            //        && ((IEnumerable<string>)depObj.Data).Contains(y.LinkObject.Name, model.CaseSensitive ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase) :
+
+            //        y.Name.Equals(depObj.Name, model.CaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase)
+            //)
+            //&& !y.IsDescendant)).FirstOrDefault();
         }
     }
 }

@@ -14,5 +14,6 @@ namespace ConsoliSQL.Models
         public bool PrependDrops { get; set; }
         public bool DropsAtTop { get; set; }
         public bool AllowCircularDependies { get; set; }
+        public bool ColumnDependencies { get; set; }
     }
 }

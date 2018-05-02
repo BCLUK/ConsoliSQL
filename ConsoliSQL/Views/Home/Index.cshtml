@@ -93,6 +93,14 @@
                                 <label>@Html.CheckBoxFor(x => x.AllowCircularDependies) Allow circular dependencies</label>
                                 <span class="glyphicon glyphicon-info-sign" data-toggle="tooltip" title="Ignores errors caused by scripts depending on each other. These scripts will be in no particular order."></span>
                             </div>
+
+                            <h4 class="text-danger">EXPERIMENTAL</h4>
+
+                            <div class="checkbox">
+                                <label>@Html.CheckBoxFor(x => x.ColumnDependencies, new { @checked = "checked" }) Column dependencies</label>
+                                <span class="glyphicon glyphicon-info-sign" data-toggle="tooltip" title="Will search for scripts that add a column to a table and will ensure any scripts that depend on the new column come after."></span>
+                            </div>
+
                             <ul class="list-inline pull-right">
                                 <li><button type="button" class="btn btn-default prev-step">Previous</button></li>
                                 <li><input class="btn btn-primary" type="submit" value="Consolidate" /></li>
