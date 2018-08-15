@@ -28,7 +28,7 @@ namespace ConsoliSQL
         {
             get
             {
-                return instance ?? new SqlSystemObjects();
+                return instance ?? (instance = new SqlSystemObjects());
             }
         }
 

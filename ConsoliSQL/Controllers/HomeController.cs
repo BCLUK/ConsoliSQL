@@ -12,6 +12,7 @@ using System.Net;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using System.Web;
 using System.Web.Mvc;
 
@@ -34,6 +35,8 @@ namespace ConsoliSQL.Controllers
 
         const string LOG_DIR = "Logs";
 
+        private readonly object _lock = new object();
+
         [HttpPost]
         public ActionResult Index(Home model)
         {
@@ -47,143 +50,22 @@ namespace ConsoliSQL.Controllers
                 var scriptFiles = new HashSet<ScriptFile>();
                 var count = 0;
                 var filesCount = model.Files.Count();
+                var tasks = new List<Task>();
+
+                // Initialise singletons while in http context
+                var temp = SqlSystemObjects.Instance;
+                var temp2 = SqlSnippets.Instance;
 
                 foreach (var file in model.Files)
                 {
-                    Hubs.ConsolidateProgressHub.ReportProgress(User.Identity.Name, "Parsing<br>" + Path.GetFileName(file.FileName), (double)++count / filesCount * 100);
-
-                    var sqlObjects = new HashSet<SqlObject>();
-                    var scriptFile = new ScriptFile();
-                    var html = new HtmlDocument();
-                    string rawContent;
-
                     using (var reader = new StreamReader(file.InputStream))
-                    using (var stringReader = new StringReader((rawContent = reader.ReadToEnd())))
                     {
-                        var parser = new TSql140Parser(false);
-                        IList<ParseError> parseErrors;
-                        var parseContent = (TSqlScript)parser.Parse(stringReader, out parseErrors);
-                        
-                        scriptFile.FileName = Path.GetFileName(file.FileName);
-                        scriptFile.ParseErrors = parseErrors.Select(x => $"{x.Message} Line: {x.Line}");
-
-                        if (parseErrors.Count < 1)
-                        {
-                            foreach (var batch in parseContent.Batches)
-                            {
-                                foreach (var statement in batch.Statements)
-                                {
-                                    var isDescendant = false;
-                                    Helpers.FindDependencies(statement, sqlObjects, scriptFile, ref isDescendant, null, model.ColumnDependencies);
-                                }
-                            }
-
-                            // The reason we don't filter out ignored/system/descendant objects here is so we can mark them up in the document view
-                            scriptFile.Creates = sqlObjects.Where(x => x.IsCreate);
-                            scriptFile.DependsOn = sqlObjects.Where(x => !x.IsCreate);
-
-                            var escapedFilename = Microsoft.SqlServer.Management.SqlParser.Parser.EscapeSequence.SingleQuotedEscapeSequence.Escape(scriptFile.FileName);
-                            var sqlStatement = new StringBuilder();
-
-                            if (model.PrependDrops && !model.DropsAtTop)
-                            {
-                                foreach (var createObj in scriptFile.Creates.Where(x => !x.Ignore && !x.IsSystemObject && !x.IsDescendant))
-                                {
-                                    sqlStatement.Append(createObj.ScriptDropStatement());
-                                    sqlStatement.AppendLine();
-
-                                    if (model.ErrorChecking)
-                                    {
-                                        sqlStatement.Append(SqlSnippets.Instance.Snippets.ErrorCheck);
-                                    }
-                                }
-                            }
-
-                            var indiciesToObjects = scriptFile.Creates.Union(scriptFile.DependsOn).GroupBy(x => x.NameTokenIndex).Select(x => x.First()).ToDictionary(x => x.NameTokenIndex, x => x);
-                            for (var b = 0; b < parseContent.Batches.Count; b++)
-                            {
-                                sqlStatement.AppendFormat("/* File: {1}, Batch: {2} */ GO{0}", Environment.NewLine, escapedFilename.Substring(1, escapedFilename.Length - 2), b + 1);
-
-                                var batch = parseContent.Batches[b];
-                                var content = parseContent.ScriptTokenStream.GetBatchContentWithComments(parseContent.FirstTokenIndex, parseContent.LastTokenIndex, batch.FirstTokenIndex, batch.LastTokenIndex);
-
-                                sqlStatement.AppendLine(content);
-                                sqlStatement.AppendLine(BATCH_SEPERATOR);
-                                sqlStatement.AppendLine();
-
-                                if (model.ErrorChecking)
-                                {
-                                    sqlStatement.Append(SqlSnippets.Instance.Snippets.ErrorCheck);
-                                }
-                            }
-
-                            for (var i = parseContent.FirstTokenIndex; i <= parseContent.LastTokenIndex; i++)
-                            {
-                                var token = parseContent.ScriptTokenStream[i];
-                                if (token.Text != null)
-                                {
-                                    if (indiciesToObjects.ContainsKey(i))
-                                    {
-                                        var span = html.CreateElement("mark");
-                                        if (indiciesToObjects[i].IsSystemObject)
-                                        {
-                                            span.SetAttributeValue("style", "background-color: #E0E0E0;");
-                                        }
-                                        else if (indiciesToObjects[i].Ignore)
-                                        {
-                                            span.SetAttributeValue("style", "background-color: #A1887F;");
-                                        }
-                                        else
-                                        {
-                                            span.SetAttributeValue("style", "background-color: #FFF176;");
-                                        }
-
-                                        span.InnerHtml = token.Text;
-
-                                        html.DocumentNode.AppendChild(span);
-                                    }
-                                    else
-                                    {
-                                        html.DocumentNode.AppendChild(html.CreateTextNode(token.Text));
-                                    }
-                                }
-                            }
-
-                            scriptFile.Content = sqlStatement.ToString();
-                        }
-                        else
-                        {
-                            using (var stringReader2 = new StringReader(rawContent))
-                            {
-                                string line;
-                                var lineCount = 0;
-                                var errorLines = parseErrors.Select(x => x.Line);
-
-                                while ((line = stringReader2.ReadLine()) != null)
-                                {
-                                    if (errorLines.Any(x => x == ++lineCount))
-                                    {
-                                        var span = html.CreateElement("mark");
-                                        span.SetAttributeValue("style", "background-color: red;");
-                                        span.InnerHtml = line;
-
-                                        html.DocumentNode.AppendChild(span);
-                                    }
-                                    else
-                                    {
-                                        html.DocumentNode.AppendChild(html.CreateTextNode(line));
-                                    }
-
-                                    html.DocumentNode.AppendChild(html.CreateTextNode(Environment.NewLine));
-                                }
-                            }
-                        }
-
-                        scriptFile.Overview = html.DocumentNode.OuterHtml;
-
-                        scriptFiles.Add(scriptFile);
+                        var rawContent = reader.ReadToEnd();
+                        tasks.Add(Task.Run(() => ParseFile(rawContent, scriptFiles, file.FileName, ref count, filesCount, model.ColumnDependencies, model.PrependDrops, model.DropsAtTop, model.ErrorChecking)));
                     }
                 }
+
+                Task.WhenAll(tasks.ToArray()).Wait();
 
                 Hubs.ConsolidateProgressHub.ReportProgress(User.Identity.Name, "Linking scripts", 100);
 
@@ -198,33 +80,17 @@ namespace ConsoliSQL.Controllers
                 var scriptFilesCount = scriptFilesNoErrors.Count();
                 var linkingProgress = 0;
 
+                tasks.Clear();
+                
                 foreach (var scriptFile in scriptFilesNoErrors)
                 {
                     foreach (var depObj in scriptFile.FilteredDependsOn())
                     {
-                        // Search all script files for create object that isn't ignored (temporary table), is the same type as @depObj, has the same name as @depObj & isn't a descendant object
-                        //var createObj = scriptFilesNoErrors.SelectMany(x => x.Creates.Where(y => y.IsCreate && !y.Ignore && y.Type.IsEqualTo(depObj.Type)
-                        //&&
-                        //(
-                        //    model.ColumnDependencies && y.Type == SqlObjectType.Column ?
-                        //        y.Name.Equals(depObj.Name, model.CaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase)
-                        //        && ((IEnumerable<string>)depObj.Data).Contains(y.LinkObject.Name, model.CaseSensitive ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase) :
-
-                        //        y.Name.Equals(depObj.Name, model.CaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase)
-                        //)
-                        //&& !y.IsDescendant)).FirstOrDefault();
-
-                        var createObj = Helpers.GetCreateObject(model.ColumnDependencies, model.CaseSensitive, scriptFilesNoErrors, depObj);
-
-                        // If a script file was found and a link between @scriptFile to @createObj doesn't already exist, and @createObj doesn't equal @scriptFile
-                        if (createObj != null && !dependencyGraph.ContainsEdge(createObj.File, scriptFile) && !createObj.File.Equals(scriptFile))
-                        {
-                            dependencyGraph.AddEdge(new SEdge<ScriptFile>(createObj.File, scriptFile));
-                        }
+                        tasks.Add(Task.Run(() => FindLink(dependencyGraph, scriptFilesNoErrors, scriptFile, depObj, ref linkingProgress, scriptFilesCount, model.ColumnDependencies, model.CaseSensitive)));
                     }
-                    
-                    Hubs.ConsolidateProgressHub.ReportProgress(User.Identity.Name, "Linking scripts<br>" + Path.GetFileName(scriptFile.FileName), (double)++linkingProgress / scriptFilesCount * 100);
                 }
+
+                Task.WhenAll(tasks).Wait();
 
                 Hubs.ConsolidateProgressHub.ReportProgress(User.Identity.Name, "Scripts linked<br>Please wait", 100);
 
@@ -305,6 +171,160 @@ namespace ConsoliSQL.Controllers
             return View();
         }
         
+        private void ParseFile(string rawContent, HashSet<ScriptFile> scriptFiles, string filename, ref int count, int filesCount, bool columnDependencies, bool prependDrops, bool dropsAtTop, bool errorChecking)
+        {
+            lock (_lock)
+                Hubs.ConsolidateProgressHub.ReportProgress(User.Identity.Name, "Parsing<br>" + Path.GetFileName(filename), (double)++count / filesCount * 100);
+            
+            using (var stringReader = new StringReader(rawContent))
+            {
+                var sqlObjects = new HashSet<SqlObject>();
+                var scriptFile = new ScriptFile();
+                var html = new HtmlDocument();
+
+                var parser = new TSql140Parser(false);
+                IList<ParseError> parseErrors;
+                var parseContent = (TSqlScript)parser.Parse(stringReader, out parseErrors);
+
+                scriptFile.FileName = Path.GetFileName(filename);
+                scriptFile.ParseErrors = parseErrors.Select(x => $"{x.Message} Line: {x.Line}");
+
+                if (parseErrors.Count < 1)
+                {
+                    foreach (var batch in parseContent.Batches)
+                    {
+                        foreach (var statement in batch.Statements)
+                        {
+                            var isDescendant = false;
+                            Helpers.FindDependencies(statement, sqlObjects, scriptFile, ref isDescendant, null, columnDependencies);
+                        }
+                    }
+
+                    // The reason we don't filter out ignored/system/descendant objects here is so we can mark them up in the document view
+                    scriptFile.Creates = sqlObjects.Where(x => x.IsCreate);
+                    scriptFile.DependsOn = sqlObjects.Where(x => !x.IsCreate);
+
+                    var escapedFilename = Microsoft.SqlServer.Management.SqlParser.Parser.EscapeSequence.SingleQuotedEscapeSequence.Escape(scriptFile.FileName);
+                    var sqlStatement = new StringBuilder();
+
+                    if (prependDrops && !dropsAtTop)
+                    {
+                        foreach (var createObj in scriptFile.Creates.Where(x => !x.Ignore && !x.IsSystemObject && !x.IsDescendant))
+                        {
+                            sqlStatement.Append(createObj.ScriptDropStatement());
+                            sqlStatement.AppendLine();
+
+                            if (errorChecking)
+                            {
+                                sqlStatement.Append(SqlSnippets.Instance.Snippets.ErrorCheck);
+                            }
+                        }
+                    }
+
+                    var indiciesToObjects = scriptFile.Creates.Union(scriptFile.DependsOn).GroupBy(x => x.NameTokenIndex).Select(x => x.First()).ToDictionary(x => x.NameTokenIndex, x => x);
+                    for (var b = 0; b < parseContent.Batches.Count; b++)
+                    {
+                        sqlStatement.AppendFormat("/* File: {1}, Batch: {2} */ GO{0}", Environment.NewLine, escapedFilename.Substring(1, escapedFilename.Length - 2), b + 1);
+
+                        var batch = parseContent.Batches[b];
+                        var content = parseContent.ScriptTokenStream.GetBatchContentWithComments(parseContent.FirstTokenIndex, parseContent.LastTokenIndex, batch.FirstTokenIndex, batch.LastTokenIndex);
+
+                        sqlStatement.AppendLine(content);
+                        sqlStatement.AppendLine(BATCH_SEPERATOR);
+                        sqlStatement.AppendLine();
+
+                        if (errorChecking)
+                        {
+                            sqlStatement.Append(SqlSnippets.Instance.Snippets.ErrorCheck);
+                        }
+                    }
+
+                    for (var i = parseContent.FirstTokenIndex; i <= parseContent.LastTokenIndex; i++)
+                    {
+                        var token = parseContent.ScriptTokenStream[i];
+                        if (token.Text != null)
+                        {
+                            if (indiciesToObjects.ContainsKey(i))
+                            {
+                                var span = html.CreateElement("mark");
+                                if (indiciesToObjects[i].IsSystemObject)
+                                {
+                                    span.SetAttributeValue("style", "background-color: #E0E0E0;");
+                                }
+                                else if (indiciesToObjects[i].Ignore)
+                                {
+                                    span.SetAttributeValue("style", "background-color: #A1887F;");
+                                }
+                                else
+                                {
+                                    span.SetAttributeValue("style", "background-color: #FFF176;");
+                                }
+
+                                span.InnerHtml = token.Text;
+
+                                html.DocumentNode.AppendChild(span);
+                            }
+                            else
+                            {
+                                html.DocumentNode.AppendChild(html.CreateTextNode(token.Text));
+                            }
+                        }
+                    }
+
+                    scriptFile.Content = sqlStatement.ToString();
+                }
+                else
+                {
+                    using (var stringReader2 = new StringReader(rawContent))
+                    {
+                        string line;
+                        var lineCount = 0;
+                        var errorLines = parseErrors.Select(x => x.Line);
+
+                        while ((line = stringReader2.ReadLine()) != null)
+                        {
+                            if (errorLines.Any(x => x == ++lineCount))
+                            {
+                                var span = html.CreateElement("mark");
+                                span.SetAttributeValue("style", "background-color: red;");
+                                span.InnerHtml = line;
+
+                                html.DocumentNode.AppendChild(span);
+                            }
+                            else
+                            {
+                                html.DocumentNode.AppendChild(html.CreateTextNode(line));
+                            }
+
+                            html.DocumentNode.AppendChild(html.CreateTextNode(Environment.NewLine));
+                        }
+                    }
+                }
+
+                scriptFile.Overview = html.DocumentNode.OuterHtml;
+
+                lock (scriptFiles)
+                    scriptFiles.Add(scriptFile);
+            }
+        }
+
+        private void FindLink(AdjacencyGraph<ScriptFile, SEdge<ScriptFile>> dependencyGraph, IEnumerable<ScriptFile> scriptFilesNoErrors, ScriptFile scriptFile, SqlObject depObj, ref int linkingProgress, int scriptFilesCount, bool columnDependencies, bool caseSensitive)
+        {
+            var createObj = Helpers.GetCreateObject(columnDependencies, caseSensitive, scriptFilesNoErrors, depObj);
+
+            // If a script file was found and a link between @scriptFile to @createObj doesn't already exist, and @createObj doesn't equal @scriptFile
+            if (createObj != null && !createObj.File.Equals(scriptFile))
+            {
+                lock (_lock)
+                {
+                    if (!dependencyGraph.ContainsEdge(createObj.File, scriptFile))
+                    {
+                        dependencyGraph.AddEdge(new SEdge<ScriptFile>(createObj.File, scriptFile));
+                    }
+                }
+            }
+        }
+
         private void Log(string file, params object[] messages)
         {
             var workingDir = Path.Combine(Server.MapPath("~"), LOG_DIR);
