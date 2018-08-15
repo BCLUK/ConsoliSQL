@@ -267,6 +267,10 @@ namespace ConsoliSQL
                     }
                 }
             }
+            else if (obj is ForeignKeyConstraintDefinition fkcd)
+            {
+                sqlObjects.Add(new SqlObject(fkcd.ReferenceTableName.BaseIdentifier.Value, SqlObjectType.Table, false, fkcd.ReferenceTableName.BaseIdentifier.FirstTokenIndex, scriptFile, isDescendant));
+            }
             else if (!(obj is string) && obj is System.Collections.IEnumerable)
             {
                 foreach (var item in (System.Collections.IEnumerable)obj)
