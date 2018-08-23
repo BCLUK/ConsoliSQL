@@ -7,6 +7,7 @@ namespace ConsoliSQL.Models
 {
     public class ScriptFile
     {
+        public int Order { get; set; }
         public string FileName { get; set; }
         public string Content { get; set; }
         public IEnumerable<SqlObject> Creates { get; set; }

@@ -51,6 +51,7 @@ namespace ConsoliSQL.Controllers
                 var count = 0;
                 var filesCount = model.Files.Count();
                 var tasks = new List<Task>();
+                var order = 0;
 
                 // Initialise singletons while in http context
                 var temp = SqlSystemObjects.Instance;
@@ -61,11 +62,15 @@ namespace ConsoliSQL.Controllers
                     using (var reader = new StreamReader(file.InputStream))
                     {
                         var rawContent = reader.ReadToEnd();
-                        tasks.Add(Task.Run(() => ParseFile(rawContent, scriptFiles, file.FileName, ref count, filesCount, model.ColumnDependencies, model.PrependDrops, model.DropsAtTop, model.ErrorChecking)));
+                        tasks.Add(Task.Run(() => ParseFile(rawContent, scriptFiles, file.FileName, ref count, filesCount, ++order, model.ColumnDependencies, model.PrependDrops, model.DropsAtTop, model.ErrorChecking)));
                     }
                 }
 
                 Task.WhenAll(tasks.ToArray()).Wait();
+
+                // Doing this allows the scripts to stay in the order they came in,
+                // making the order of files that don't have any dependencies more predictable.
+                scriptFiles = new HashSet<ScriptFile>(scriptFiles.OrderBy(x => x.Order));
 
                 Hubs.ConsolidateProgressHub.ReportProgress(User.Identity.Name, "Linking scripts", 100);
 
@@ -171,7 +176,7 @@ namespace ConsoliSQL.Controllers
             return View();
         }
         
-        private void ParseFile(string rawContent, HashSet<ScriptFile> scriptFiles, string filename, ref int count, int filesCount, bool columnDependencies, bool prependDrops, bool dropsAtTop, bool errorChecking)
+        private void ParseFile(string rawContent, HashSet<ScriptFile> scriptFiles, string filename, ref int count, int filesCount, int order, bool columnDependencies, bool prependDrops, bool dropsAtTop, bool errorChecking)
         {
             lock (_lock)
                 Hubs.ConsolidateProgressHub.ReportProgress(User.Identity.Name, "Parsing<br>" + Path.GetFileName(filename), (double)++count / filesCount * 100);
@@ -179,7 +184,7 @@ namespace ConsoliSQL.Controllers
             using (var stringReader = new StringReader(rawContent))
             {
                 var sqlObjects = new HashSet<SqlObject>();
-                var scriptFile = new ScriptFile();
+                var scriptFile = new ScriptFile { Order = order };
                 var html = new HtmlDocument();
 
                 var parser = new TSql140Parser(false);
