@@ -18,6 +18,7 @@ using System.Web.Mvc;
 
 namespace ConsoliSQL.Controllers
 {
+    [AllowCORSAttribute]
     public class HomeController : Controller
     {
         public ActionResult Index()
