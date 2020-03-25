@@ -118,7 +118,7 @@ namespace ConsoliSQL.Controllers
                     return PartialView("TopologicalFail", parallelEdges);
                 }
                 
-                var dot = Visualizer.ToDotNotation(dependencyGraph);
+                var dot = scriptFilesCount <= 100 ? Visualizer.ToDotNotation(dependencyGraph) : "graph G { 0 [label=\"Graph will only display if there are l00 or less scripts!\"]; }";
                 var orderedScripts = dependencyGraph.TopologicalSort();
                 var script = new StringBuilder();
 
