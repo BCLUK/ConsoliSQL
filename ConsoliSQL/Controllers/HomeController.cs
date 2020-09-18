@@ -31,6 +31,7 @@ namespace ConsoliSQL.Controllers
 
         const string WINDOWS_LINE_ENDING = "\r\n";
         const string UNIX_LINE_ENDING = "\n";
+        const string OLDMAC_LINE_ENDING = "\r";
 
         const string ERROR_MESSAGE_FILES = "No files have been selected.";
 
@@ -157,7 +158,7 @@ namespace ConsoliSQL.Controllers
                 var output = script.ToString().TrimEnd();
                 if (model.NormaliseLineEndings)
                 {
-                    output = output.Replace(WINDOWS_LINE_ENDING, UNIX_LINE_ENDING).Replace(UNIX_LINE_ENDING, WINDOWS_LINE_ENDING);
+                    output = output.Replace(WINDOWS_LINE_ENDING, UNIX_LINE_ENDING).Replace(OLDMAC_LINE_ENDING, UNIX_LINE_ENDING).Replace(UNIX_LINE_ENDING, WINDOWS_LINE_ENDING);
                 }
                 
                 var filteredScriptFiles = orderedScripts.Select(x =>
