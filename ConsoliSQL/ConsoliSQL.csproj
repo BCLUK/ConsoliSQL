@@ -18,7 +18,7 @@
     <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <UseIISExpress>true</UseIISExpress>
     <IISExpressSSLPort />
-    <IISExpressAnonymousAuthentication>disabled</IISExpressAnonymousAuthentication>
+    <IISExpressAnonymousAuthentication>enabled</IISExpressAnonymousAuthentication>
     <IISExpressWindowsAuthentication>enabled</IISExpressWindowsAuthentication>
     <IISExpressUseClassicPipelineMode />
     <UseGlobalApplicationHostFile />
@@ -223,6 +223,7 @@
     <Compile Include="Helpers.cs" />
     <Compile Include="Hubs\ConsolidateProgressHub.cs" />
     <Compile Include="Models\DropStatementException.cs" />
+    <Compile Include="Models\GenerateResult.cs" />
     <Compile Include="Models\Home.cs" />
     <Compile Include="Models\Consolidated.cs" />
     <Compile Include="Models\ScriptFile.cs" />
@@ -269,7 +270,7 @@
           <AutoAssignPort>True</AutoAssignPort>
           <DevelopmentServerPort>50020</DevelopmentServerPort>
           <DevelopmentServerVPath>/</DevelopmentServerVPath>
-          <IISUrl>http://localhost:50020/</IISUrl>
+          <IISUrl>http://localhost:51020/</IISUrl>
           <NTLMAuthentication>False</NTLMAuthentication>
           <UseCustomServer>False</UseCustomServer>
           <CustomServerUrl>

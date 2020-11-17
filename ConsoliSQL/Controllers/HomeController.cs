@@ -2,6 +2,7 @@
 using HtmlAgilityPack;
 using Microsoft.AspNet.SignalR;
 using Microsoft.SqlServer.TransactSql.ScriptDom;
+using Newtonsoft.Json;
 using QuickGraph;
 using QuickGraph.Algorithms;
 using System;
@@ -19,6 +20,7 @@ using System.Web.Mvc;
 namespace ConsoliSQL.Controllers
 {
     [AllowCORSAttribute]
+    [System.Web.Mvc.Authorize]
     public class HomeController : Controller
     {
         public ActionResult Index()
@@ -26,7 +28,7 @@ namespace ConsoliSQL.Controllers
             Log("visit.csv");
             return View();
         }
-        
+
         const string BATCH_SEPERATOR = "GO";
 
         const string WINDOWS_LINE_ENDING = "\r\n";
@@ -42,147 +44,28 @@ namespace ConsoliSQL.Controllers
         [HttpPost]
         public ActionResult Index(Home model)
         {
-            if (model.Files == null || (model.Files.Count() == 1 && model.Files.First() == null))
+            var res = GenerateTheScript(model);
+            if (res.ErrorCode == GenerateResult.GENERATE_CODE_SUCCESS)
+            {
+                return PartialView("Consolidated", res.State);
+            }
+            else if (res.ErrorCode == GenerateResult.GENERATE_CODE_ERROR1)
             {
                 ModelState.AddModelError("Files", ERROR_MESSAGE_FILES);
             }
-            
-            if (ModelState.IsValid)
+            else if (res.ErrorCode == GenerateResult.GENERATE_CODE_ERROR2)
             {
-                var scriptFiles = new HashSet<ScriptFile>();
-                var count = 0;
-                var filesCount = model.Files.Count();
-                var tasks = new List<Task>();
-                var order = 0;
-
-                // Initialise singletons while in http context
-                var temp = SqlSystemObjects.Instance;
-                var temp2 = SqlSnippets.Instance;
-
-                foreach (var file in model.Files)
-                {
-                    using (var reader = new StreamReader(file.InputStream))
-                    {
-                        var rawContent = reader.ReadToEnd();
-                        tasks.Add(Task.Run(() => ParseFile(rawContent, scriptFiles, file.FileName, ref count, filesCount, ++order, model.ColumnDependencies, model.PrependDrops, model.DropsAtTop, model.ErrorChecking)));
-                    }
-                }
-
-                Task.WhenAll(tasks.ToArray()).Wait();
-
-                // Doing this allows the scripts to stay in the order they came in,
-                // making the order of files that don't have any dependencies more predictable.
-                scriptFiles = new HashSet<ScriptFile>(scriptFiles.OrderBy(x => x.Order));
-
-                Hubs.ConsolidateProgressHub.ReportProgress(User.Identity.Name, "Linking scripts", 100);
-
-                var scriptFilesNoErrors = scriptFiles.Where(x => !x.ParseErrors.Any());
-                
-                var dependencyGraph = new AdjacencyGraph<ScriptFile, SEdge<ScriptFile>>();
-                foreach (var scriptFile in scriptFiles)
-                {
-                    dependencyGraph.AddVertex(scriptFile);
-                }
-
-                var scriptFilesCount = scriptFilesNoErrors.Count();
-                var linkingProgress = 0;
-
-                tasks.Clear();
-                
-                foreach (var scriptFile in scriptFilesNoErrors)
-                {
-                    foreach (var depObj in scriptFile.FilteredDependsOn())
-                    {
-                        tasks.Add(Task.Run(() => FindLink(dependencyGraph, scriptFilesNoErrors, scriptFile, depObj, ref linkingProgress, scriptFilesCount, model.ColumnDependencies, model.CaseSensitive)));
-                    }
-                }
-
-                Task.WhenAll(tasks).Wait();
-
-                Hubs.ConsolidateProgressHub.ReportProgress(User.Identity.Name, "Scripts linked<br>Please wait", 100);
-
-                if (model.AllowCircularDependies && !dependencyGraph.IsDirectedAcyclicGraph())
-                {
-                    var parallelEdges = dependencyGraph.Edges.Where(x => dependencyGraph.ContainsEdge(x.Target, x.Source)).ToList();
-                    foreach (var edge in parallelEdges)
-                    {
-                        parallelEdges.RemoveAll(x => x.Source == edge.Target && x.Target == x.Source);
-                    }
-
-                    dependencyGraph.RemoveEdgeIf(x => parallelEdges.Contains(x));
-                }
-
-                if (!dependencyGraph.IsDirectedAcyclicGraph())
-                {
-                    var parallelEdges = dependencyGraph.Edges.Where(x => dependencyGraph.ContainsEdge(x.Target, x.Source));
-
-                    return PartialView("TopologicalFail", parallelEdges);
-                }
-                
-                var dot = scriptFilesCount <= 100 ? Visualizer.ToDotNotation(dependencyGraph) : "graph G { 0 [label=\"Graph will only display if there are l00 or less scripts!\"]; }";
-                var orderedScripts = dependencyGraph.TopologicalSort();
-                var script = new StringBuilder();
-
-                if (model.ErrorChecking)
-                {
-                    script.Append(SqlSnippets.Instance.Snippets.ErrorCheckPrefix);
-                }
-                
-                if (model.DropsAtTop)
-                {
-                    foreach (var scriptFile in orderedScripts.Reverse())
-                    {
-                        foreach (var createObj in scriptFile.Creates.Where(x => !x.Ignore && !x.IsSystemObject && !x.IsDescendant))
-                        {
-                            script.Append(createObj.ScriptDropStatement());
-                            script.AppendLine();
-
-                            if (model.ErrorChecking)
-                            {
-                                script.Append(SqlSnippets.Instance.Snippets.ErrorCheck);
-                            }
-                        }
-                    }
-                }
-
-                foreach (var scriptFile in orderedScripts)
-                {
-                    script.Append(scriptFile.Content);
-                }
-
-                if (model.ErrorChecking)
-                {
-                    script.Append(SqlSnippets.Instance.Snippets.ErrorCheckSuffix);
-                }
-
-                var output = script.ToString().TrimEnd();
-                if (model.NormaliseLineEndings)
-                {
-                    output = output.Replace(WINDOWS_LINE_ENDING, UNIX_LINE_ENDING).Replace(OLDMAC_LINE_ENDING, UNIX_LINE_ENDING).Replace(UNIX_LINE_ENDING, WINDOWS_LINE_ENDING);
-                }
-                
-                var filteredScriptFiles = orderedScripts.Select(x =>
-                {
-                    x.Creates = x.ParseErrors.Any() ? new SqlObject[0] : x.FilteredCreates().GroupBy(y => y.Type).Select(y => y.OrderBy(z => z.Name)).SelectMany(y => y);
-                    x.DependsOn = x.ParseErrors.Any() ? new SqlObject[0] : x.UniqueFilteredDependsOn(model.CaseSensitive).GroupBy(y => y.Type).Select(y => y.OrderBy(z => z.Name)).SelectMany(y => y);
-                    return x;
-                });
-
-                Log("consolidate.csv", ModelState.IsValid, model.ErrorChecking, model.NormaliseLineEndings, model.CaseSensitive, model.PrependDrops, model.DropsAtTop, model.AllowCircularDependies, filesCount);
-
-                Hubs.ConsolidateProgressHub.ReportProgress(User.Identity.Name, "Done", 100);
-
-                return PartialView("Consolidated", new Consolidated { Script = output, DotNotation = dot, ScriptFiles = filteredScriptFiles });
+                return PartialView("TopologicalFail", res.State);
             }
 
             return View();
         }
-        
+
         private void ParseFile(string rawContent, HashSet<ScriptFile> scriptFiles, string filename, ref int count, int filesCount, int order, bool columnDependencies, bool prependDrops, bool dropsAtTop, bool errorChecking)
         {
             lock (_lock)
                 Hubs.ConsolidateProgressHub.ReportProgress(User.Identity.Name, "Parsing<br>" + Path.GetFileName(filename), (double)++count / filesCount * 100);
-            
+
             using (var stringReader = new StringReader(rawContent))
             {
                 var sqlObjects = new HashSet<SqlObject>();
@@ -353,6 +236,147 @@ namespace ConsoliSQL.Controllers
             }
 
             System.IO.File.AppendAllLines(logPath, new[] { string.Join(",", messageParts.Concat(messages)) });
+        }
+
+        private GenerateResult GenerateTheScript(Home model, bool scriptOnly = false)
+        {
+            if (model.Files == null || (model.Files.Count() == 1 && model.Files.First() == null))
+            {
+                return new GenerateResult { ErrorCode = GenerateResult.GENERATE_CODE_ERROR1, Message = ERROR_MESSAGE_FILES };
+            }
+
+            var scriptFiles = new HashSet<ScriptFile>();
+            var count = 0;
+            var filesCount = model.Files.Count();
+            var tasks = new List<Task>();
+            var order = 0;
+
+            // Initialise singletons while in http context
+            var temp = SqlSystemObjects.Instance;
+            var temp2 = SqlSnippets.Instance;
+
+            foreach (var file in model.Files)
+            {
+                using (var reader = new StreamReader(file.InputStream))
+                {
+                    var rawContent = reader.ReadToEnd();
+                    tasks.Add(Task.Run(() => ParseFile(rawContent, scriptFiles, file.FileName, ref count, filesCount, ++order, model.ColumnDependencies, model.PrependDrops, model.DropsAtTop, model.ErrorChecking)));
+                }
+            }
+
+            Task.WhenAll(tasks.ToArray()).Wait();
+
+            // Doing this allows the scripts to stay in the order they came in,
+            // making the order of files that don't have any dependencies more predictable.
+            scriptFiles = new HashSet<ScriptFile>(scriptFiles.OrderBy(x => x.Order));
+
+            Hubs.ConsolidateProgressHub.ReportProgress(User.Identity.Name, "Linking scripts", 100);
+
+            var scriptFilesNoErrors = scriptFiles.Where(x => !x.ParseErrors.Any());
+
+            var dependencyGraph = new AdjacencyGraph<ScriptFile, SEdge<ScriptFile>>();
+            foreach (var scriptFile in scriptFiles)
+            {
+                dependencyGraph.AddVertex(scriptFile);
+            }
+
+            var scriptFilesCount = scriptFilesNoErrors.Count();
+            var linkingProgress = 0;
+
+            tasks.Clear();
+
+            foreach (var scriptFile in scriptFilesNoErrors)
+            {
+                foreach (var depObj in scriptFile.FilteredDependsOn())
+                {
+                    tasks.Add(Task.Run(() => FindLink(dependencyGraph, scriptFilesNoErrors, scriptFile, depObj, ref linkingProgress, scriptFilesCount, model.ColumnDependencies, model.CaseSensitive)));
+                }
+            }
+
+            Task.WhenAll(tasks).Wait();
+
+            Hubs.ConsolidateProgressHub.ReportProgress(User.Identity.Name, "Scripts linked<br>Please wait", 100);
+
+            if (model.AllowCircularDependies && !dependencyGraph.IsDirectedAcyclicGraph())
+            {
+                var parallelEdges = dependencyGraph.Edges.Where(x => dependencyGraph.ContainsEdge(x.Target, x.Source)).ToList();
+                foreach (var edge in parallelEdges)
+                {
+                    parallelEdges.RemoveAll(x => x.Source == edge.Target && x.Target == x.Source);
+                }
+
+                dependencyGraph.RemoveEdgeIf(x => parallelEdges.Contains(x));
+            }
+
+            if (!dependencyGraph.IsDirectedAcyclicGraph())
+            {
+                var parallelEdges = dependencyGraph.Edges.Where(x => dependencyGraph.ContainsEdge(x.Target, x.Source));
+
+                return new GenerateResult { ErrorCode = GenerateResult.GENERATE_CODE_ERROR2, Message = "Topological fail", State = parallelEdges };
+            }
+
+            var dot = scriptFilesCount <= 100 ? Visualizer.ToDotNotation(dependencyGraph) : "graph G { 0 [label=\"Graph will only display if there are l00 or less scripts!\"]; }";
+            var orderedScripts = dependencyGraph.TopologicalSort();
+            var script = new StringBuilder();
+
+            if (model.ErrorChecking)
+            {
+                script.Append(SqlSnippets.Instance.Snippets.ErrorCheckPrefix);
+            }
+
+            if (model.DropsAtTop)
+            {
+                foreach (var scriptFile in orderedScripts.Reverse())
+                {
+                    foreach (var createObj in scriptFile.Creates.Where(x => !x.Ignore && !x.IsSystemObject && !x.IsDescendant))
+                    {
+                        script.Append(createObj.ScriptDropStatement());
+                        script.AppendLine();
+
+                        if (model.ErrorChecking)
+                        {
+                            script.Append(SqlSnippets.Instance.Snippets.ErrorCheck);
+                        }
+                    }
+                }
+            }
+
+            foreach (var scriptFile in orderedScripts)
+            {
+                script.Append(scriptFile.Content);
+            }
+
+            if (model.ErrorChecking)
+            {
+                script.Append(SqlSnippets.Instance.Snippets.ErrorCheckSuffix);
+            }
+
+            var output = script.ToString().TrimEnd();
+            if (model.NormaliseLineEndings)
+            {
+                output = output.Replace(WINDOWS_LINE_ENDING, UNIX_LINE_ENDING).Replace(OLDMAC_LINE_ENDING, UNIX_LINE_ENDING).Replace(UNIX_LINE_ENDING, WINDOWS_LINE_ENDING);
+            }
+
+            var filteredScriptFiles = orderedScripts.Select(x =>
+            {
+                x.Creates = x.ParseErrors.Any() ? new SqlObject[0] : x.FilteredCreates().GroupBy(y => y.Type).Select(y => y.OrderBy(z => z.Name)).SelectMany(y => y);
+                x.DependsOn = x.ParseErrors.Any() ? new SqlObject[0] : x.UniqueFilteredDependsOn(model.CaseSensitive).GroupBy(y => y.Type).Select(y => y.OrderBy(z => z.Name)).SelectMany(y => y);
+                return x;
+            });
+
+            Log("consolidate.csv", ModelState.IsValid, model.ErrorChecking, model.NormaliseLineEndings, model.CaseSensitive, model.PrependDrops, model.DropsAtTop, model.AllowCircularDependies, filesCount);
+
+            Hubs.ConsolidateProgressHub.ReportProgress(User.Identity.Name, "Done", 100);
+
+            //return PartialView("Consolidated", new Consolidated { Script = output, DotNotation = dot, ScriptFiles = filteredScriptFiles });
+            return new GenerateResult { ErrorCode = GenerateResult.GENERATE_CODE_SUCCESS, Message = "Success", State = scriptOnly ? (object)output : new Consolidated { Script = output, DotNotation = dot, ScriptFiles = filteredScriptFiles } };
+        }
+
+        [HttpPost]
+        [AllowAnonymous]
+        public ActionResult GenerateScript(Home model)
+        {
+            return Content(JsonConvert.SerializeObject(GenerateTheScript(model, true)), "application/json");
         }
     }
 }
