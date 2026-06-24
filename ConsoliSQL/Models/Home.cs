@@ -15,5 +15,6 @@ namespace ConsoliSQL.Models
         public bool DropsAtTop { get; set; }
         public bool AllowCircularDependies { get; set; }
         public bool ColumnDependencies { get; set; }
+        public bool AddProgressMarkers { get; set; } = true;
     }
 }

@@ -65,8 +65,13 @@
                             <h3>Options</h3>
                             <p>Customise your consolidated script file.</p>
                             <div class="checkbox">
-                                <label>@Html.CheckBoxFor(x => x.ErrorChecking, new { @checked = "checked" }) Add error checking</label>
+                                <label>@Html.CheckBoxFor(x => x.ErrorChecking, new { @checked = "checked", id = "error-checking-checkbox" }) Add error checking</label>
                                 <span class="glyphicon glyphicon-info-sign" data-toggle="tooltip" title="Wraps everything in a transaction and appends an @("@@")ERROR check to every batch. Everything will be rolled back in the event of an error."></span>
+                            </div>
+
+                            <div class="checkbox">
+                                <label>@Html.CheckBoxFor(x => x.AddProgressMarkers, new { @checked = "checked", id = "progress-markers-checkbox" }) Add progress markers</label>
+                                <span class="glyphicon glyphicon-info-sign" data-toggle="tooltip" title="Adds a PRINT statement at the end of every file's content showing percent complete (e.g. [50.00%] (3/6)), so progress is visible when running the script in SSMS. Requires error checking."></span>
                             </div>
 
                             <div class="checkbox">
@@ -182,6 +187,12 @@
 
             $("#prepend-drops-checkbox").click(function () {
                 $("#drops-at-top-checkbox").prop("disabled", !$(this).is(":checked"));
+            });
+
+            $("#error-checking-checkbox").click(function () {
+                var enabled = $(this).is(":checked");
+                $("#progress-markers-checkbox").prop("disabled", !enabled);
+                if (!enabled) $("#progress-markers-checkbox").prop("checked", false);
             });
         });
 

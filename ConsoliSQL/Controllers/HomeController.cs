@@ -61,7 +61,7 @@ namespace ConsoliSQL.Controllers
             return View();
         }
 
-        private void ParseFile(string rawContent, HashSet<ScriptFile> scriptFiles, string filename, ref int count, int filesCount, int order, bool columnDependencies, bool prependDrops, bool dropsAtTop, bool errorChecking)
+        private void ParseFile(string rawContent, HashSet<ScriptFile> scriptFiles, string filename, ref int count, int filesCount, int order, bool columnDependencies, bool prependDrops, bool dropsAtTop, bool errorChecking, bool addProgressMarkers)
         {
             lock (_lock)
                 Hubs.ConsolidateProgressHub.ReportProgress(User.Identity.Name, "Parsing<br>" + Path.GetFileName(filename), (double)++count / filesCount * 100);
@@ -95,7 +95,10 @@ namespace ConsoliSQL.Controllers
                     scriptFile.DependsOn = sqlObjects.Where(x => !x.IsCreate);
 
                     var escapedFilename = Microsoft.SqlServer.Management.SqlParser.Parser.EscapeSequence.SingleQuotedEscapeSequence.Escape(scriptFile.FileName);
+                    var escapedFilenameInner = escapedFilename.Substring(1, escapedFilename.Length - 2);
                     var sqlStatement = new StringBuilder();
+
+                    var lastErrorCheckInsertPos = -1;
 
                     if (prependDrops && !dropsAtTop)
                     {
@@ -106,6 +109,7 @@ namespace ConsoliSQL.Controllers
 
                             if (errorChecking)
                             {
+                                lastErrorCheckInsertPos = sqlStatement.Length;
                                 sqlStatement.Append(SqlSnippets.Instance.Snippets.ErrorCheck);
                             }
                         }
@@ -114,7 +118,7 @@ namespace ConsoliSQL.Controllers
                     var indiciesToObjects = scriptFile.Creates.Union(scriptFile.DependsOn).GroupBy(x => x.NameTokenIndex).Select(x => x.First()).ToDictionary(x => x.NameTokenIndex, x => x);
                     for (var b = 0; b < parseContent.Batches.Count; b++)
                     {
-                        sqlStatement.AppendFormat("/* File: {1}, Batch: {2} */ GO{0}", Environment.NewLine, escapedFilename.Substring(1, escapedFilename.Length - 2), b + 1);
+                        sqlStatement.AppendFormat("/* File: {1}, Batch: {2} */ GO{0}", Environment.NewLine, escapedFilenameInner, b + 1);
 
                         var batch = parseContent.Batches[b];
                         var content = parseContent.ScriptTokenStream.GetBatchContentWithComments(parseContent.FirstTokenIndex, parseContent.LastTokenIndex, batch.FirstTokenIndex, batch.LastTokenIndex);
@@ -125,8 +129,14 @@ namespace ConsoliSQL.Controllers
 
                         if (errorChecking)
                         {
+                            lastErrorCheckInsertPos = sqlStatement.Length;
                             sqlStatement.Append(SqlSnippets.Instance.Snippets.ErrorCheck);
                         }
+                    }
+
+                    if (addProgressMarkers && lastErrorCheckInsertPos >= 0)
+                    {
+                        sqlStatement.Insert(lastErrorCheckInsertPos, "/*__PROG__*/" + Environment.NewLine);
                     }
 
                     for (var i = parseContent.FirstTokenIndex; i <= parseContent.LastTokenIndex; i++)
@@ -260,7 +270,7 @@ namespace ConsoliSQL.Controllers
                 using (var reader = new StreamReader(file.InputStream))
                 {
                     var rawContent = reader.ReadToEnd();
-                    tasks.Add(Task.Run(() => ParseFile(rawContent, scriptFiles, file.FileName, ref count, filesCount, ++order, model.ColumnDependencies, model.PrependDrops, model.DropsAtTop, model.ErrorChecking)));
+                    tasks.Add(Task.Run(() => ParseFile(rawContent, scriptFiles, file.FileName, ref count, filesCount, ++order, model.ColumnDependencies, model.PrependDrops, model.DropsAtTop, model.ErrorChecking, model.AddProgressMarkers)));
                 }
             }
 
@@ -316,7 +326,7 @@ namespace ConsoliSQL.Controllers
             }
 
             var dot = scriptFilesCount <= 100 ? Visualizer.ToDotNotation(dependencyGraph) : "graph G { 0 [label=\"Graph will only display if there are l00 or less scripts!\"]; }";
-            var orderedScripts = dependencyGraph.TopologicalSort();
+            var orderedScripts = dependencyGraph.TopologicalSort().ToList();
             var script = new StringBuilder();
 
             if (model.ErrorChecking)
@@ -326,7 +336,7 @@ namespace ConsoliSQL.Controllers
 
             if (model.DropsAtTop)
             {
-                foreach (var scriptFile in orderedScripts.Reverse())
+                foreach (var scriptFile in orderedScripts.AsEnumerable().Reverse())
                 {
                     foreach (var createObj in scriptFile.Creates.Where(x => !x.Ignore && !x.IsSystemObject && !x.IsDescendant))
                     {
@@ -351,7 +361,17 @@ namespace ConsoliSQL.Controllers
                 script.Append(SqlSnippets.Instance.Snippets.ErrorCheckSuffix);
             }
 
-            var output = script.ToString().TrimEnd();
+            var progressRegex = new Regex(@"/\*__PROG__\*/\r?\n?");
+            var scriptText = script.ToString();
+            var totalProgress = progressRegex.Matches(scriptText).Count;
+            var progressIndex = 0;
+            var padding = new string(' ', 100);
+            var output = progressRegex.Replace(scriptText, m =>
+            {
+                progressIndex++;
+                var pct = totalProgress == 0 ? 100m : Math.Round(100m * progressIndex / totalProgress, 2);
+                return $"PRINT '{padding}[{pct}%] ({progressIndex}/{totalProgress})'{Environment.NewLine}";
+            }).TrimEnd();
             if (model.NormaliseLineEndings)
             {
                 output = output.Replace(WINDOWS_LINE_ENDING, UNIX_LINE_ENDING).Replace(OLDMAC_LINE_ENDING, UNIX_LINE_ENDING).Replace(UNIX_LINE_ENDING, WINDOWS_LINE_ENDING);
@@ -364,7 +384,7 @@ namespace ConsoliSQL.Controllers
                 return x;
             });
 
-            Log("consolidate.csv", ModelState.IsValid, model.ErrorChecking, model.NormaliseLineEndings, model.CaseSensitive, model.PrependDrops, model.DropsAtTop, model.AllowCircularDependies, filesCount);
+            Log("consolidate.csv", ModelState.IsValid, model.ErrorChecking, model.NormaliseLineEndings, model.CaseSensitive, model.PrependDrops, model.DropsAtTop, model.AllowCircularDependies, model.AddProgressMarkers, filesCount);
 
             Hubs.ConsolidateProgressHub.ReportProgress(User.Identity.Name, "Done", 100);
 
