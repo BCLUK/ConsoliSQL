@@ -40,6 +40,7 @@ namespace ConsoliSQL.Controllers
         const string LOG_DIR = "Logs";
 
         private readonly object _lock = new object();
+        private static readonly object _logLock = new object();
 
         [HttpPost]
         public ActionResult Index(Home model)
@@ -236,7 +237,11 @@ namespace ConsoliSQL.Controllers
                 messageParts.Add("");
             }
 
-            System.IO.File.AppendAllLines(logPath, new[] { string.Join(",", messageParts.Concat(messages)) });
+            // Static because each request gets its own controller, and concurrent appends to the same file fail
+            lock (_logLock)
+            {
+                System.IO.File.AppendAllLines(logPath, new[] { string.Join(",", messageParts.Concat(messages)) });
+            }
         }
 
         private GenerateResult GenerateTheScript(Home model, bool scriptOnly = false)
