@@ -208,21 +208,12 @@ namespace ConsoliSQL.Controllers
             }
         }
 
-        private void FindLink(AdjacencyGraph<ScriptFile, SEdge<ScriptFile>> dependencyGraph, IEnumerable<ScriptFile> scriptFilesNoErrors, ScriptFile scriptFile, SqlObject depObj, ref int linkingProgress, int scriptFilesCount, bool columnDependencies, bool caseSensitive)
+        // Returns the script file that creates @depObj, or null if there isn't one or it's @scriptFile itself
+        private ScriptFile FindLink(IEnumerable<ScriptFile> scriptFilesNoErrors, ScriptFile scriptFile, SqlObject depObj, bool columnDependencies, bool caseSensitive)
         {
             var createObj = Helpers.GetCreateObject(columnDependencies, caseSensitive, scriptFilesNoErrors, depObj);
 
-            // If a script file was found and a link between @scriptFile to @createObj doesn't already exist, and @createObj doesn't equal @scriptFile
-            if (createObj != null && !createObj.File.Equals(scriptFile))
-            {
-                lock (_lock)
-                {
-                    if (!dependencyGraph.ContainsEdge(createObj.File, scriptFile))
-                    {
-                        dependencyGraph.AddEdge(new SEdge<ScriptFile>(createObj.File, scriptFile));
-                    }
-                }
-            }
+            return createObj != null && !createObj.File.Equals(scriptFile) ? createObj.File : null;
         }
 
         private void Log(string file, params object[] messages)
@@ -273,7 +264,9 @@ namespace ConsoliSQL.Controllers
                     var rawContent = Helpers.DecodeScript(memoryStream.ToArray());
                     var encodingWarning = Helpers.GetReplacementCharacterWarning(rawContent);
                     var fileWarnings = encodingWarning == null ? new string[0] : new[] { encodingWarning };
-                    tasks.Add(Task.Run(() => ParseFile(rawContent, fileWarnings, scriptFiles, file.FileName, ref count, filesCount, ++order, model.ColumnDependencies, model.PrependDrops, model.DropsAtTop, model.ErrorChecking, model.AddProgressMarkers)));
+                    // Taken here rather than inside the task, otherwise the order depends on which task runs first
+                    var fileOrder = ++order;
+                    tasks.Add(Task.Run(() => ParseFile(rawContent, fileWarnings, scriptFiles, file.FileName, ref count, filesCount, fileOrder, model.ColumnDependencies, model.PrependDrops, model.DropsAtTop, model.ErrorChecking, model.AddProgressMarkers)));
                 }
             }
 
@@ -294,19 +287,28 @@ namespace ConsoliSQL.Controllers
             }
 
             var scriptFilesCount = scriptFilesNoErrors.Count();
-            var linkingProgress = 0;
 
             tasks.Clear();
 
-            foreach (var scriptFile in scriptFilesNoErrors)
+            var links = scriptFilesNoErrors.SelectMany(x => x.FilteredDependsOn().Select(y => new { ScriptFile = x, DepObj = y })).ToList();
+            var linkSources = new ScriptFile[links.Count];
+
+            for (var i = 0; i < links.Count; i++)
             {
-                foreach (var depObj in scriptFile.FilteredDependsOn())
-                {
-                    tasks.Add(Task.Run(() => FindLink(dependencyGraph, scriptFilesNoErrors, scriptFile, depObj, ref linkingProgress, scriptFilesCount, model.ColumnDependencies, model.CaseSensitive)));
-                }
+                var index = i;
+                tasks.Add(Task.Run(() => linkSources[index] = FindLink(scriptFilesNoErrors, links[index].ScriptFile, links[index].DepObj, model.ColumnDependencies, model.CaseSensitive)));
             }
 
             Task.WhenAll(tasks).Wait();
+
+            // Edges are added in a fixed order because the topological sort follows them in the order they were added
+            for (var i = 0; i < links.Count; i++)
+            {
+                if (linkSources[i] != null && !dependencyGraph.ContainsEdge(linkSources[i], links[i].ScriptFile))
+                {
+                    dependencyGraph.AddEdge(new SEdge<ScriptFile>(linkSources[i], links[i].ScriptFile));
+                }
+            }
 
             Hubs.ConsolidateProgressHub.ReportProgress(User.Identity.Name, "Scripts linked<br>Please wait", 100);
 
