@@ -11,6 +11,52 @@ namespace ConsoliSQL
 {
     public static class Helpers
     {
+        private static readonly Encoding StrictUtf8 = new UTF8Encoding(false, true);
+
+        // Decodes an uploaded script file. A BOM (UTF-8, UTF-16 LE/BE) wins, then strict UTF-8, then Windows-1252,
+        // because the scripts are a mix of UTF-8 (with and without a BOM) and ANSI files.
+        public static string DecodeScript(byte[] bytes)
+        {
+            if (bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
+            {
+                return new UTF8Encoding(false).GetString(bytes, 3, bytes.Length - 3);
+            }
+
+            if (bytes.Length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE)
+            {
+                return Encoding.Unicode.GetString(bytes, 2, bytes.Length - 2);
+            }
+
+            if (bytes.Length >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF)
+            {
+                return Encoding.BigEndianUnicode.GetString(bytes, 2, bytes.Length - 2);
+            }
+
+            try
+            {
+                return StrictUtf8.GetString(bytes);
+            }
+            catch (DecoderFallbackException)
+            {
+                return Encoding.GetEncoding(1252).GetString(bytes);
+            }
+        }
+
+        // Returns a warning if the decoded script contains U+FFFD, which means the source file is already corrupt
+        // (or is in an encoding we can't detect), otherwise null.
+        public static string GetReplacementCharacterWarning(string content)
+        {
+            var lines = content.Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.None)
+                .Select((line, i) => new { line, number = i + 1 })
+                .Where(x => x.line.IndexOf('�') >= 0)
+                .Select(x => x.number)
+                .ToList();
+
+            return lines.Any()
+                ? $"Contains the Unicode replacement character (U+FFFD) on line(s) {string.Join(", ", lines)}. The source file's non-ASCII characters may already be corrupt."
+                : null;
+        }
+
         public static void FindDependencies(object obj, HashSet<SqlObject> sqlObjects, ScriptFile scriptFile, ref bool isDescendant, object data, bool columnDependencies)
         {
             var foundData = GetDependency(obj, sqlObjects, scriptFile, ref isDescendant, data, columnDependencies);

@@ -14,5 +14,6 @@ namespace ConsoliSQL.Models
         public int ErrorCode { get; set; }
         public string Message { get; set; }
         public object State { get; set; }
+        public IEnumerable<string> Warnings { get; set; } = new string[0];
     }
 }

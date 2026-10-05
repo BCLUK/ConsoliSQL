@@ -61,7 +61,7 @@ namespace ConsoliSQL.Controllers
             return View();
         }
 
-        private void ParseFile(string rawContent, HashSet<ScriptFile> scriptFiles, string filename, ref int count, int filesCount, int order, bool columnDependencies, bool prependDrops, bool dropsAtTop, bool errorChecking, bool addProgressMarkers)
+        private void ParseFile(string rawContent, IEnumerable<string> warnings, HashSet<ScriptFile> scriptFiles, string filename, ref int count, int filesCount, int order, bool columnDependencies, bool prependDrops, bool dropsAtTop, bool errorChecking, bool addProgressMarkers)
         {
             lock (_lock)
                 Hubs.ConsolidateProgressHub.ReportProgress(User.Identity.Name, "Parsing<br>" + Path.GetFileName(filename), (double)++count / filesCount * 100);
@@ -69,7 +69,7 @@ namespace ConsoliSQL.Controllers
             using (var stringReader = new StringReader(rawContent))
             {
                 var sqlObjects = new HashSet<SqlObject>();
-                var scriptFile = new ScriptFile { Order = order };
+                var scriptFile = new ScriptFile { Order = order, Warnings = warnings };
                 var html = new HtmlDocument();
 
                 var parser = new TSql140Parser(false);
@@ -267,10 +267,13 @@ namespace ConsoliSQL.Controllers
 
             foreach (var file in model.Files)
             {
-                using (var reader = new StreamReader(file.InputStream))
+                using (var memoryStream = new MemoryStream())
                 {
-                    var rawContent = reader.ReadToEnd();
-                    tasks.Add(Task.Run(() => ParseFile(rawContent, scriptFiles, file.FileName, ref count, filesCount, ++order, model.ColumnDependencies, model.PrependDrops, model.DropsAtTop, model.ErrorChecking, model.AddProgressMarkers)));
+                    file.InputStream.CopyTo(memoryStream);
+                    var rawContent = Helpers.DecodeScript(memoryStream.ToArray());
+                    var encodingWarning = Helpers.GetReplacementCharacterWarning(rawContent);
+                    var fileWarnings = encodingWarning == null ? new string[0] : new[] { encodingWarning };
+                    tasks.Add(Task.Run(() => ParseFile(rawContent, fileWarnings, scriptFiles, file.FileName, ref count, filesCount, ++order, model.ColumnDependencies, model.PrependDrops, model.DropsAtTop, model.ErrorChecking, model.AddProgressMarkers)));
                 }
             }
 
@@ -389,7 +392,9 @@ namespace ConsoliSQL.Controllers
             Hubs.ConsolidateProgressHub.ReportProgress(User.Identity.Name, "Done", 100);
 
             //return PartialView("Consolidated", new Consolidated { Script = output, DotNotation = dot, ScriptFiles = filteredScriptFiles });
-            return new GenerateResult { ErrorCode = GenerateResult.GENERATE_CODE_SUCCESS, Message = "Success", State = scriptOnly ? (object)output : new Consolidated { Script = output, DotNotation = dot, ScriptFiles = filteredScriptFiles } };
+            var warnings = orderedScripts.SelectMany(x => x.Warnings.Select(y => $"{x.FileName}: {y}")).ToList();
+
+            return new GenerateResult { ErrorCode = GenerateResult.GENERATE_CODE_SUCCESS, Message = "Success", Warnings = warnings, State = scriptOnly ? (object)output : new Consolidated { Script = output, DotNotation = dot, ScriptFiles = filteredScriptFiles } };
         }
 
         [HttpPost]

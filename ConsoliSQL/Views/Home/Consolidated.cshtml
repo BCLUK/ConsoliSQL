@@ -20,6 +20,13 @@ else
     </div>
 }
 
+@if (Model.ScriptFiles.Any(x => x.Warnings.Any()))
+{
+    <div class="alert alert-warning">
+        <strong>Warning!</strong> @(Model.ScriptFiles.Count(x => x.Warnings.Any())) file(s) contain the Unicode replacement character (&#xFFFD;), so some characters may be corrupt. See Encoding Warnings below.
+    </div>
+}
+
 @functions {
     private static string GetSqlObjectIconPath(ConsoliSQL.Models.SqlObjectType type)
     {
@@ -123,6 +130,30 @@ else
             </div>
         </div>
     }
+    @if (Model.ScriptFiles.Any(x => x.Warnings.Any()))
+    {
+        <div class="panel panel-default">
+            <div class="panel-heading" data-toggle="collapse" data-target="#encoding-warnings" role="button">Encoding Warnings</div>
+            <div class="panel-collapse collapse" id="encoding-warnings">
+                <div class="panel-body">
+                    @foreach (var scriptFile in Model.ScriptFiles.Where(x => x.Warnings.Any()))
+                    {
+                        <ul>
+                            <li>
+                                <strong>@scriptFile.FileName</strong>
+                                <ul>
+                                    @foreach (var warning in scriptFile.Warnings)
+                                    {
+                                        <li>@warning</li>
+                                    }
+                                </ul>
+                            </li>
+                        </ul>
+                    }
+                </div>
+            </div>
+        </div>
+    }
 </div>
 
 <script src="~/Scripts/viz.js"></script>
@@ -145,7 +176,8 @@ else
         return date + " " + time;
     }
 
-    var blob = new Blob(["@Html.Raw(HttpUtility.JavaScriptStringEncode(Model.Script))"], { type: "text/plain" });
+    // Blob writes strings as UTF-8; the BOM makes SSMS open it as UTF-8 rather than guessing the ANSI code page
+    var blob = new Blob(["\ufeff", "@Html.Raw(HttpUtility.JavaScriptStringEncode(Model.Script))"], { type: "text/plain" });
 
     if (window.navigator.msSaveOrOpenBlob) {
         $("#sql-download-link").click(function () {

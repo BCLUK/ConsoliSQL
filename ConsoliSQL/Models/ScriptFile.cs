@@ -13,6 +13,7 @@ namespace ConsoliSQL.Models
         public IEnumerable<SqlObject> Creates { get; set; }
         public IEnumerable<SqlObject> DependsOn { get; set; }
         public IEnumerable<string> ParseErrors { get; set; }
+        public IEnumerable<string> Warnings { get; set; } = new string[0];
         public string Overview { get; set; }
 
         public override string ToString() => FileName;
